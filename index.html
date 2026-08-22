@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Vinho &amp; Harmonia — o vinho certo para cada momento (entrega em [sua cidade])</title>
+  <meta name="description" content="Curadoria de vinhos tintos com entrega em [sua cidade]. Frete grátis acima de R$ 150, pagamento por PIX ou cartão. Venda proibida para menores de 18 anos.">
+  <meta name="theme-color" content="#7a1f3d">
+  <meta name="robots" content="index, follow">
+
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="canonical" href="https://vinhoeharmonia.vercel.app/">
+
+  <!-- Open Graph / compartilhamento. URLs absolutas montadas a partir de
+       SITE_URL (.env.example) — trocar o domínio junto com o deploy final. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Vinho &amp; Harmonia">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:title" content="Vinho &amp; Harmonia — o vinho certo para cada momento">
+  <meta property="og:description" content="Curadoria de vinhos tintos com entrega em [sua cidade]. Frete grátis acima de R$ 150.">
+  <meta property="og:url" content="https://vinhoeharmonia.vercel.app/">
+  <meta property="og:image" content="https://vinhoeharmonia.vercel.app/img/coragem-reserva.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Vinho &amp; Harmonia — o vinho certo para cada momento">
+  <meta name="twitter:description" content="Curadoria de vinhos tintos com entrega em [sua cidade]. Frete grátis acima de R$ 150.">
+  <meta name="twitter:image" content="https://vinhoeharmonia.vercel.app/img/coragem-reserva.jpg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/styles.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "LiquorStore",
+    "name": "Vinho & Harmonia",
+    "description": "Curadoria de vinhos tintos com entrega e retirada. Venda proibida para menores de 18 anos.",
+    "url": "https://vinhoeharmonia.vercel.app/",
+    "image": "https://vinhoeharmonia.vercel.app/icons/icon-512.png",
+    "priceRange": "R$ 39 - R$ 96",
+    "currenciesAccepted": "BRL",
+    "paymentAccepted": "PIX, Cartão de crédito",
+    "telephone": "+55 00 00000-0000",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Rua Exemplo, 000",
+      "addressLocality": "[sua cidade]",
+      "addressRegion": "UF",
+      "postalCode": "00000-000",
+      "addressCountry": "BR"
+    },
+    "openingHoursSpecification": [
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": [
+          "Monday", "Tuesday", "Wednesday", "Thursday",
+          "Friday", "Saturday", "Sunday"
+        ],
+        "opens": "00:00",
+        "closes": "23:59"
+      }
+    ]
+  }
+  </script>
+  <!-- PLACEHOLDER (trocar depois): "telephone" e "address" acima são fictícios.
+       Substituir pelo telefone e endereço reais da loja assim que existirem;
+       o mesmo vale pelo rodapé desta página. A loja está sempre aberta, por
+       isso openingHoursSpecification cobre os 7 dias, 00:00–23:59. -->
+</head>
+<body>
+
+  <!-- ============================================================ age gate -->
+  <div class="overlay age-gate" id="age-gate" role="dialog" aria-modal="true" aria-labelledby="age-title" hidden>
+    <div class="age-card">
+      <div class="brand-mark" aria-hidden="true">V&amp;H</div>
+      <h2 id="age-title">Você tem 18 anos ou mais?</h2>
+      <p>Precisamos confirmar sua idade antes de mostrar nossa carta de vinhos.</p>
+      <div class="age-actions">
+        <button class="btn btn-ghost" type="button" id="age-no">Não</button>
+        <button class="btn btn-gold" type="button" id="age-yes">Sim, tenho 18+</button>
+      </div>
+      <p class="age-legal">Venda proibida para menores de 18 anos. Beba com moderação.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================== header -->
+  <header class="site-header">
+    <div class="wrap">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">V&amp;H</div>
+        <div class="brand-text">
+          <h1>Vinho <span class="amp">&amp;</span> Harmonia</h1>
+          <p class="brand-slogan">o vinho certo para cada momento</p>
+        </div>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs" aria-label="Categorias"></nav>
+  </header>
+
+  <div class="wrap">
+    <!-- botão exibido só quando existe vh_last_order no localStorage -->
+    <div class="repeat-bar" id="repeat-bar" hidden>
+      <button class="btn-repeat" type="button" id="btn-repeat">🔁 Repetir último pedido</button>
+    </div>
+  </div>
+
+  <!-- ================================================================ main -->
+  <main class="wrap">
+    <div id="catalog"><!-- seções por categoria renderizadas por js/store.js --></div>
+
+    <section class="about" id="sobre">
+      <h2>Sobre a Vinho &amp; Harmonia</h2>
+      <p>Somos uma loja de curadoria: cada rótulo aqui foi provado e escolhido para
+        combinar com um momento — um jantar de domingo, um encontro sem hora para
+        acabar, uma noite tranquila. Nada de prateleira infinita, só o que vale a taça.</p>
+      <p>Entregamos na sua casa ou você retira no balcão. Frete grátis em pedidos
+        acima de R$ 150. Dúvida de harmonização? Toque em qualquer vinho e veja com o
+        que ele combina.</p>
+    </section>
+  </main>
+
+  <!-- ============================================================== footer -->
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <h3>Endereço</h3>
+          <!-- PLACEHOLDER (trocar depois): endereço real da loja -->
+          <p>Rua Exemplo, 000 — Bairro<br>[sua cidade] / UF — CEP 00000-000</p>
+        </div>
+        <div>
+          <h3>Horário</h3>
+          <p>Aberto todos os dias, 24 horas por dia.<br>Pedidos pelo site a qualquer hora.</p>
+        </div>
+        <div>
+          <h3>Contato</h3>
+          <!-- PLACEHOLDER (trocar depois): telefone real da loja -->
+          <p>(00) 00000-0000<br>contato@vinhoharmonia.com.br</p>
+        </div>
+      </div>
+      <p class="age-warning">Venda proibida para menores de 18 anos</p>
+      <p style="text-align:center;margin-top:10px;font-size:.78rem">Beba com moderação. Se beber, não dirija.</p>
+    </div>
+  </footer>
+
+  <!-- ====================================================== botão carrinho -->
+  <button class="cart-fab" type="button" id="cart-fab">
+    <span class="fab-left">
+      <span class="fab-count" id="fab-count">0</span>
+      <span>Ver carrinho</span>
+    </span>
+    <span class="fab-total" id="fab-total">R$ 0,00</span>
+  </button>
+
+  <!-- ====================================================== gaveta do carrinho -->
+  <div class="overlay overlay--drawer" id="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cart-title" hidden>
+    <div class="drawer">
+      <div class="panel-head">
+        <h2 id="cart-title">Seu carrinho</h2>
+        <button class="btn-icon" type="button" id="cart-close" aria-label="Fechar carrinho">✕</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="freeship" id="freeship">
+          <p class="freeship-text" id="freeship-text"></p>
+          <div class="freeship-track"><div class="freeship-fill" id="freeship-fill"></div></div>
+        </div>
+
+        <div id="cart-items"></div>
+
+        <div class="cross-sell" id="cross-sell" hidden>
+          <h3>Harmoniza bem com</h3>
+          <div class="pairing-list" id="cross-sell-list"></div>
+        </div>
+      </div>
+
+      <div class="drawer-foot">
+        <div class="totals-line total"><span>Subtotal</span><span id="cart-subtotal">R$ 0,00</span></div>
+        <button class="btn btn-gold btn-block" type="button" id="btn-checkout" style="margin-top:10px">Finalizar pedido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= modal produto -->
+  <div class="overlay" id="product-modal" role="dialog" aria-modal="true" aria-labelledby="pm-name" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <img id="pm-img" src="" alt="">
+        <button class="modal-close" type="button" id="pm-close" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-body">
+        <h2 id="pm-name"></h2>
+        <p class="modal-meta" id="pm-meta"></p>
+        <p class="modal-price" id="pm-price"></p>
+        <p class="modal-desc" id="pm-desc"></p>
+
+        <div class="field" style="margin-top:12px">
+          <label for="pm-note">Observação (opcional)</label>
+          <textarea id="pm-note" placeholder="Ex.: embalar para presente, entregar gelado…"></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <div class="stepper" id="pm-stepper">
+            <button type="button" data-step="-1" aria-label="Diminuir quantidade">&minus;</button>
+            <span class="qty" id="pm-qty">1</span>
+            <button type="button" data-step="1" aria-label="Aumentar quantidade">+</button>
+          </div>
+          <button class="btn btn-gold" type="button" id="pm-add">Adicionar ao carrinho</button>
+        </div>
+
+        <div class="pairings" id="pm-pairings">
+          <h3>Harmoniza bem com</h3>
+          <div class="pairing-list" id="pm-pairing-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================ checkout bottom sheet -->
+  <div class="overlay overlay--sheet" id="checkout-sheet" role="dialog" aria-modal="true" aria-labelledby="co-title" hidden>
+    <div class="sheet">
+      <div class="sh-head">
+        <div class="panel-grip" aria-hidden="true"></div>
+        <div class="panel-head">
+          <h2 id="co-title">Finalizar pedido</h2>
+          <button class="btn-icon" type="button" id="co-close" aria-label="Fechar checkout">✕</button>
+        </div>
+      </div>
+
+      <!-- resumo dos itens: rola por dentro, limitado a 34vh -->
+      <div class="sh-body">
+        <h3>Seu pedido</h3>
+        <div id="co-summary"></div>
+      </div>
+
+      <!-- formulário: rola por dentro, botão de enviar sempre visível (sticky) -->
+      <div class="sh-foot">
+        <form id="checkout-form" novalidate>
+          <div class="seg" id="delivery-toggle" role="group" aria-label="Forma de recebimento">
+            <button type="button" data-delivery="delivery" class="active">Entrega</button>
+            <button type="button" data-delivery="pickup">Retirada</button>
+          </div>
+
+          <div class="fieldset-block" id="address-block">
+            <div class="block-title">Endereço de entrega</div>
+            <div class="form-grid">
+              <div class="form-row">
+                <div class="field">
+                  <label for="f-cep">CEP</label>
+                  <input id="f-cep" name="cep" type="text" inputmode="numeric" placeholder="00000-000" autocomplete="postal-code">
+                  <span class="field-hint" id="freight-hint"></span>
+                </div>
+                <div class="field">
+                  <label for="f-number">Número</label>
+                  <input id="f-number" name="number" type="text" placeholder="123">
+                </div>
+              </div>
+              <div class="field">
+                <label for="f-street">Rua</label>
+                <input id="f-street" name="street" type="text" placeholder="Rua das Vinhas" autocomplete="address-line1">
+              </div>
+              <div class="field">
+                <label for="f-complement">Complemento (opcional)</label>
+                <input id="f-complement" name="complement" type="text" placeholder="Apto 42, bloco B">
+              </div>
+              <div class="form-row form-row--3">
+                <div class="field">
+                  <label for="f-neighborhood">Bairro</label>
+                  <input id="f-neighborhood" name="neighborhood" type="text">
+                </div>
+                <div class="field">
+                  <label for="f-city">Cidade</label>
+                  <input id="f-city" name="city" type="text">
+                </div>
+                <div class="field">
+                  <label for="f-state">UF</label>
+                  <input id="f-state" name="state" type="text" maxlength="2" placeholder="SP">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="fieldset-block">
+            <div class="block-title">Seus dados</div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="f-name">Nome completo</label>
+                <input id="f-name" name="fullName" type="text" autocomplete="name">
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label for="f-birth">Data de nascimento</label>
+                  <input id="f-birth" name="birthDate" type="date">
+                </div>
+                <div class="field">
+                  <label for="f-cpf">CPF</label>
+                  <input id="f-cpf" name="cpf" type="text" inputmode="numeric" placeholder="000.000.000-00">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label for="f-phone">Celular</label>
+                  <input id="f-phone" name="phone" type="tel" placeholder="(00) 00000-0000" autocomplete="tel">
+                </div>
+                <div class="field">
+                  <label for="f-email">E-mail</label>
+                  <input id="f-email" name="email" type="email" placeholder="voce@email.com" autocomplete="email">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="fieldset-block">
+            <div class="block-title">Cupom de desconto</div>
+            <div class="coupon-row">
+              <div class="field">
+                <label for="f-coupon">Código</label>
+                <input id="f-coupon" name="coupon" type="text" placeholder="PRIMEIRA10">
+              </div>
+              <button class="btn btn-ghost" type="button" id="btn-coupon">Aplicar</button>
+            </div>
+            <span class="field-hint" id="coupon-hint"></span>
+          </div>
+
+          <div class="fieldset-block">
+            <div class="block-title">Pagamento</div>
+            <div class="pay-options">
+              <label class="pay-option">
+                <input type="radio" name="pay" value="pix" checked>
+                <span>
+                  <span class="pay-label">PIX</span><br>
+                  <span class="pay-sub">Confirmação rápida, chave copia-e-cola</span>
+                </span>
+              </label>
+              <label class="pay-option">
+                <input type="radio" name="pay" value="card">
+                <span>
+                  <span class="pay-label">Cartão de crédito</span><br>
+                  <span class="pay-sub">Checkout seguro do Mercado Pago</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="pix-box" id="pix-box">
+              <div class="block-title">Chave PIX da loja</div>
+              <div class="pix-key-row">
+                <span class="pix-key" id="pix-key">contato@vinhoharmonia.com.br</span>
+                <button class="btn btn-gold" type="button" data-copy-pix>Copiar</button>
+              </div>
+            </div>
+
+            <div class="card-msg" id="card-msg" hidden>
+              Pagamento por cartão em configuração, escolha PIX por enquanto.
+            </div>
+          </div>
+
+          <div id="co-totals"></div>
+
+          <div class="form-errors" id="form-errors" hidden></div>
+
+          <p class="sheet-age-warning">Venda proibida para menores de 18 anos</p>
+
+          <button class="btn btn-gold btn-block btn-enviar" type="submit" id="btn-enviar">Enviar pedido</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= confirmação -->
+  <section class="confirm-view" id="confirmation" aria-live="polite" hidden>
+    <div class="confirm-card">
+      <div class="confirm-badge" aria-hidden="true">🍷</div>
+      <h2>Pedido recebido!</h2>
+      <p>Guarde o número do seu pedido:</p>
+      <div class="confirm-number" id="cf-number">#0</div>
+
+      <div class="card-msg" id="cf-card-warning" hidden></div>
+
+      <div class="pix-box confirm-pix" id="cf-pix" hidden>
+        <div class="block-title">Pague <span id="cf-pix-amount"></span> via PIX</div>
+        <div class="pix-key-row">
+          <span class="pix-key" id="cf-pix-key">contato@vinhoharmonia.com.br</span>
+          <button class="btn btn-gold" type="button" data-copy-pix>Copiar</button>
+        </div>
+      </div>
+
+      <div class="confirm-summary" id="cf-summary"></div>
+
+      <button class="btn btn-ghost btn-block" type="button" id="btn-back-store" style="margin-top:18px">Voltar à loja</button>
+      <p class="age-warning" style="margin-top:14px">Venda proibida para menores de 18 anos</p>
+    </div>
+  </section>
+
+  <!-- ========================================================= banner PWA -->
+  <div class="pwa-banner" id="pwa-banner" hidden>
+    <span class="pwa-text">Instale no seu celular</span>
+    <button class="btn btn-gold" type="button" id="pwa-install">Instalar</button>
+    <button class="btn-icon" type="button" id="pwa-dismiss" aria-label="Dispensar">✕</button>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/catalog.js"></script>
+  <script src="js/pricing.js"></script>
+  <script src="js/store.js"></script>
+</body>
+</html>
