@@ -70,6 +70,64 @@ test('createOrder validates, computes totals, persists via deps.execute, returns
   assert.ok(calls.some((c) => c.text.startsWith('INSERT')));
 });
 
+test('createOrder ensures the schema exists before inserting', async () => {
+  const calls = [];
+  const execute = async (text, params) => {
+    calls.push({ text, params });
+    if (text.startsWith('INSERT')) return { rows: [{ id: 7 }] };
+    return { rows: [] };
+  };
+  await svc.createOrder({ execute }, validPayload());
+  assert.match(calls[0].text, /CREATE TABLE IF NOT EXISTS orders/);
+  assert.ok(calls.findIndex((c) => /CREATE TABLE/.test(c.text)) < calls.findIndex((c) => c.text.startsWith('INSERT')));
+});
+
+test('listOrdersForAdmin ensures the schema exists before selecting', async () => {
+  const calls = [];
+  const execute = async (text, params) => {
+    calls.push({ text, params });
+    return { rows: [] };
+  };
+  await svc.listOrdersForAdmin({ execute });
+  assert.match(calls[0].text, /CREATE TABLE IF NOT EXISTS orders/);
+  assert.match(calls[1].text, /SELECT \* FROM orders/);
+});
+
+test('createOrder ignores a forged item price and charges the catalog price', async () => {
+  const calls = [];
+  const execute = async (text, params) => {
+    calls.push({ text, params });
+    if (text.startsWith('INSERT')) return { rows: [{ id: 1 }] };
+    return { rows: [] };
+  };
+  // Porta 6 custa R$57,10 no catálogo; o cliente tenta pagar R$0,01.
+  const payload = validPayload({
+    items: [{ slug: 'porta-6', name: 'Grátis', price: 0.01, qty: 2 }],
+    delivery: { type: 'pickup', address: null, freightCost: 0 }
+  });
+  const result = await svc.createOrder({ execute }, payload);
+  assert.equal(result.subtotal, 114.2);
+  assert.equal(result.total, 114.2);
+
+  const insert = calls.find((c) => c.text.startsWith('INSERT'));
+  const storedItems = JSON.parse(insert.params[9]);
+  assert.equal(storedItems[0].price, 57.1);
+  assert.equal(storedItems[0].name, 'Porta 6');
+});
+
+test('createOrder rejects an item whose slug is not in the catalog', async () => {
+  let called = false;
+  const execute = async () => { called = true; return { rows: [] }; };
+  const payload = validPayload({ items: [{ slug: 'vinho-inventado', name: 'X', price: 1, qty: 1 }] });
+
+  const { valid, errors } = svc.validateOrderPayload(payload);
+  assert.equal(valid, false);
+  assert.ok(errors.includes('items'));
+
+  await assert.rejects(() => svc.createOrder({ execute }, payload), svc.ValidationError);
+  assert.equal(called, false);
+});
+
 test('createOrder throws ValidationError and never calls execute for an invalid payload', async () => {
   let called = false;
   const execute = async () => { called = true; return { rows: [] }; };
@@ -79,13 +137,15 @@ test('createOrder throws ValidationError and never calls execute for an invalid 
 
 test('createOrder applies free shipping once subtotal crosses R$150', async () => {
   const execute = async (text) => (text.startsWith('INSERT') ? { rows: [{ id: 1 }] } : { rows: [] });
-  const payload = validPayload({ items: [{ slug: 'porta-6', name: 'Porta 6', price: 80, qty: 2 }] }); // subtotal 160
+  const payload = validPayload({ items: [{ slug: 'porta-6', name: 'Porta 6', price: 57.1, qty: 3 }] }); // subtotal 171.30
   const result = await svc.createOrder({ execute }, payload);
+  assert.equal(result.subtotal, 171.3);
   assert.equal(result.freight, 0);
 });
 
 test('listOrdersForAdmin delegates to db.listOrders', async () => {
   const execute = async (text) => {
+    if (text.includes('CREATE TABLE')) return { rows: [] };
     assert.match(text, /SELECT \* FROM orders/);
     return { rows: [{ id: 1 }] };
   };

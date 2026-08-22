@@ -6,9 +6,13 @@ const path = require('node:path');
 const Catalog = require('../js/catalog.js');
 
 test('every catalog image path exists on disk', () => {
+  // Compara contra a listagem do diretório em vez de fs.existsSync: o filesystem
+  // do Windows é case-insensitive, mas Array#includes não é — assim o teste pega
+  // divergências de maiúscula/minúscula que quebrariam o deploy no Linux.
+  const files = fs.readdirSync(path.join(__dirname, '..', 'img'));
   for (const wine of Catalog.MENU) {
-    const full = path.join(__dirname, '..', wine.image);
-    assert.ok(fs.existsSync(full), `missing image for ${wine.name}: ${wine.image}`);
+    const basename = path.basename(wine.image);
+    assert.ok(files.includes(basename), `missing image for ${wine.name}: ${wine.image}`);
   }
 });
 
