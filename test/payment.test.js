@@ -64,6 +64,27 @@ test('createPreference throws if Mercado Pago responds with an error', async () 
   await assert.rejects(() => createPreference(deps, { id: 1, total: 10 }));
 });
 
+// Mercado Pago costuma mandar um array "cause" com o motivo detalhado do erro
+// (código + descrição interna), que ficava sendo descartado — sem ele, uma
+// falha 403 vira só "unknown" e não dá pra saber o que de fato aconteceu.
+test('createPreference includes Mercado Pago\'s cause array in the thrown error', async () => {
+  const deps = {
+    env: { MP_ACCESS_TOKEN: 'tok', SITE_URL: 'https://example.com' },
+    fetchImpl: async () => ({
+      ok: false,
+      status: 403,
+      json: async () => ({
+        message: 'At least one policy returned UNAUTHORIZED.',
+        cause: [{ code: 'PA_UNAUTHORIZED_RESULT_FROM_POLICIES', description: 'the account is blocked' }]
+      })
+    })
+  };
+  await assert.rejects(
+    () => createPreference(deps, { id: 1, total: 10 }),
+    /PA_UNAUTHORIZED_RESULT_FROM_POLICIES.*the account is blocked/
+  );
+});
+
 test('fetchPaymentStatus returns not-configured when token missing', async () => {
   const deps = { env: {}, fetchImpl: async () => { throw new Error('should not be called'); } };
   const result = await fetchPaymentStatus(deps, 'pay123');
