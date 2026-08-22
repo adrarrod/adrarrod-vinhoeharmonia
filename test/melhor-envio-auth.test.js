@@ -29,12 +29,13 @@ test('exchangeCodeForTokens posts the authorization_code grant and parses the re
   };
   const result = await exchangeCodeForTokens(deps, 'the-code');
   assert.equal(calls[0].url, 'https://melhorenvio.com.br/oauth/token');
-  const body = JSON.parse(calls[0].opts.body);
-  assert.equal(body.grant_type, 'authorization_code');
-  assert.equal(body.client_id, '11319');
-  assert.equal(body.client_secret, 'secret');
-  assert.equal(body.redirect_uri, 'https://site/cb');
-  assert.equal(body.code, 'the-code');
+  assert.equal(calls[0].opts.headers['Content-Type'], 'application/x-www-form-urlencoded');
+  const body = new URLSearchParams(calls[0].opts.body);
+  assert.equal(body.get('grant_type'), 'authorization_code');
+  assert.equal(body.get('client_id'), '11319');
+  assert.equal(body.get('client_secret'), 'secret');
+  assert.equal(body.get('redirect_uri'), 'https://site/cb');
+  assert.equal(body.get('code'), 'the-code');
   assert.deepEqual(result, { accessToken: 'AT', refreshToken: 'RT', expiresIn: 2592000 });
 });
 
@@ -57,11 +58,11 @@ test('refreshTokens posts the refresh_token grant', async () => {
   };
   const result = await refreshTokens(deps, 'old-refresh-token');
   assert.equal(calls[0].url, 'https://melhorenvio.com.br/oauth/token');
-  const body = JSON.parse(calls[0].opts.body);
-  assert.equal(body.grant_type, 'refresh_token');
-  assert.equal(body.refresh_token, 'old-refresh-token');
-  assert.equal(body.client_id, '11319');
-  assert.equal(body.client_secret, 'secret');
+  const body = new URLSearchParams(calls[0].opts.body);
+  assert.equal(body.get('grant_type'), 'refresh_token');
+  assert.equal(body.get('refresh_token'), 'old-refresh-token');
+  assert.equal(body.get('client_id'), '11319');
+  assert.equal(body.get('client_secret'), 'secret');
   assert.deepEqual(result, { accessToken: 'AT2', refreshToken: 'RT2', expiresIn: 2592000 });
 });
 

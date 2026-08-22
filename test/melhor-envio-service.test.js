@@ -42,7 +42,7 @@ test('getValidAccessToken refreshes when the token is within the renewal margin'
     execute: db.execute,
     env: { MELHOR_ENVIO_CLIENT_ID: '1', MELHOR_ENVIO_CLIENT_SECRET: 's' },
     fetchImpl: async (url, opts) => {
-      refreshCalledWith = JSON.parse(opts.body);
+      refreshCalledWith = Object.fromEntries(new URLSearchParams(opts.body));
       return { ok: true, json: async () => ({ access_token: 'NEW_AT', refresh_token: 'NEW_RT', expires_in: 2592000 }) };
     },
     db
