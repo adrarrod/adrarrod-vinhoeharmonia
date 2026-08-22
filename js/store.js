@@ -595,7 +595,6 @@
   function setPaymentMethod(method) {
     state.paymentMethod = method;
     $('#pix-box').hidden = method !== 'pix';
-    $('#card-msg').hidden = method !== 'card';
   }
 
   function readCustomer() {
