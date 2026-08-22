@@ -33,10 +33,18 @@ Em Project Settings → Environment Variables, adicione (veja `.env.example`):
 > criação da preferência (`400 auto_return invalid. back_url.success must be
 > defined`) quando as `back_urls` apontam para `http://localhost`. Em produção,
 > com a URL da Vercel, a preferência é criada normalmente.
->
-> Continua pendente (não bloqueia o cartão, mas vale fazer): verificar a assinatura
-> `x-signature` do webhook do Mercado Pago.
 
+- `MP_WEBHOOK_SECRET` — chave secreta que confirma que uma notificação de
+  pagamento realmente veio do Mercado Pago (sem ela, `/api/mp-webhook` ignora
+  toda notificação em vez de processar sem verificar a origem — e sem
+  processar as notificações, o `status` do pedido não muda sozinho para
+  "pago"/"pagamento_recusado"). Para configurar:
+  1. No painel do Mercado Pago, vá em **Suas integrações** → sua aplicação →
+     **Webhooks** → **Configurar notificação**.
+  2. Em **URL de produção**, informe `https://vinho-harmonia.vercel.app/api/mp-webhook`
+     (troque pelo seu domínio se for diferente).
+  3. Marque o evento **Pagamentos**.
+  4. Salve e copie a **chave secreta** exibida — esse é o valor de `MP_WEBHOOK_SECRET`.
 - `MELHOR_ENVIO_TOKEN` e `MELHOR_ENVIO_CEP_ORIGEM` — token e CEP de origem da
   loja no Melhor Envio. Sem eles, o frete usa a regra local (grátis acima de
   R$150, R$15 fixo abaixo).
