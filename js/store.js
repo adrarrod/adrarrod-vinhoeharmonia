@@ -15,6 +15,9 @@
   var AGE_KEY = 'idade_confirmada';
   var CART_KEY = 'vh_cart';
   var LAST_ORDER_KEY = 'vh_last_order';
+  // Guarda o pedido enquanto o cliente está no checkout do Mercado Pago: o
+  // redirect é uma navegação completa, então o estado em memória se perde.
+  var PENDING_MP_KEY = 'vh_pending_mp';
 
   var BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
   function money(value) { return BRL.format(Number(value) || 0); }
@@ -747,11 +750,9 @@
     return fetch('/api/create-payment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        orderId: order.id,
-        total: order.total,
-        items: payload.items.map(function (i) { return { name: i.name, qty: i.qty, price: i.price }; })
-      })
+      // Só o id: total e itens vêm do banco no servidor, para que nada aqui
+      // possa alterar o valor cobrado.
+      body: JSON.stringify({ orderId: order.id })
     })
       .then(function (res) {
         return res.json().catch(function () { return {}; }).then(function (data) {
@@ -761,6 +762,9 @@
       .then(function (result) {
         var data = result.data;
         if (result.ok && data && data.configured && data.initPoint) {
+          // Salvo antes de sair da página: initMercadoPagoReturn() reconstrói
+          // a confirmação com isso quando o cliente voltar do Mercado Pago.
+          writeJSON(PENDING_MP_KEY, snapshot);
           window.location.href = data.initPoint;
           return null;
         }
@@ -957,6 +961,74 @@
     openProductModal(slug);
   }
 
+  // ------------------------------------------ retorno do Mercado Pago -------
+  // O Mercado Pago devolve o cliente em /?pedido=X&pagamento=sucesso|falha|pendente
+  // (back_urls montadas em lib/payment.js). Como o redirect recarrega a página,
+  // o pedido é lido do snapshot salvo em finishOrder antes de sair daqui.
+  var MP_WARNINGS = {
+    falha: 'Pagamento não aprovado. Use o PIX abaixo, ou tente novamente mais tarde.',
+    pendente: 'Pagamento em análise. Assim que for aprovado, seu pedido segue normalmente — guarde o número acima.'
+  };
+
+  // Sem o snapshot não há itens, endereço nem total para mostrar, então estas
+  // mensagens precisam se sustentar sozinhas (nada de "o PIX abaixo").
+  var MP_STANDALONE_MESSAGES = {
+    falha: 'Pagamento não aprovado. Nada foi cobrado — refaça o pedido na loja ou tente novamente mais tarde.',
+    pendente: 'Pagamento em análise. Assim que for aprovado, seu pedido segue normalmente — guarde o número acima.',
+    sucesso: 'Pagamento concluído. Guarde o número do pedido acima.'
+  };
+
+  function initMercadoPagoReturn() {
+    var pedido = null;
+    var pagamento = null;
+    try {
+      var params = new URLSearchParams(window.location.search);
+      pedido = params.get('pedido');
+      pagamento = params.get('pagamento');
+    } catch (e) {
+      return;
+    }
+    if (!pedido && !pagamento) return;
+
+    var snapshot = readJSON(PENDING_MP_KEY, null);
+    // Usado uma vez só: recarregar a página não deve repetir a confirmação.
+    try { localStorage.removeItem(PENDING_MP_KEY); } catch (e) { /* modo privado */ }
+
+    var matches = snapshot && snapshot.order && snapshot.payload &&
+      Array.isArray(snapshot.items) && pedido &&
+      String(snapshot.order.id) === String(pedido);
+
+    if (matches) {
+      // Qualquer status fora de falha/pendente (inclusive 'sucesso') segue o
+      // mesmo caminho do PIX aprovado: confirmação limpa, sem aviso.
+      completeOrderUI(snapshot, MP_WARNINGS[pagamento] || null);
+    } else {
+      // Cliente voltou em outro navegador/dispositivo, ou limpou o localStorage.
+      showStandaloneConfirmation(pedido, pagamento);
+    }
+
+    try { history.replaceState(null, '', location.pathname); } catch (e) { /* ignore */ }
+  }
+
+  function showStandaloneConfirmation(pedido, pagamento) {
+    $('#cf-number').textContent = pedido ? '#' + pedido : '#—';
+
+    var warn = $('#cf-card-warning');
+    warn.textContent = MP_STANDALONE_MESSAGES[pagamento] || MP_STANDALONE_MESSAGES.sucesso;
+    warn.hidden = false;
+
+    // Sem snapshot não há valor a cobrar por PIX nem itens para listar.
+    $('#cf-pix').hidden = true;
+    $('#cf-summary').innerHTML =
+      '<p style="opacity:.75">O resumo deste pedido não está disponível neste dispositivo. ' +
+      'O número acima identifica seu pedido na loja.</p>';
+
+    $('#confirmation').hidden = false;
+    refreshRepeatButton();
+    lockScroll();
+    window.scrollTo(0, 0);
+  }
+
   // ----------------------------------------------------------- PWA banner --
   function initPwaBanner() {
     var banner = $('#pwa-banner');
@@ -1003,6 +1075,7 @@
     initRepeatOrder();
     initPwaBanner();
     initDeepLink();
+    initMercadoPagoReturn();
     renderFab();
     renderCart();
     initAgeGate();

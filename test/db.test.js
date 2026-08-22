@@ -44,6 +44,16 @@ test('listOrders returns rows most-recent-first via ORDER BY', async () => {
   assert.match(execute.calls[0].text, /ORDER BY created_at DESC/);
 });
 
+test('getOrderById selects a single order by id and returns null when absent', async () => {
+  const found = fakeExecute([{ rows: [{ id: 42, total: '72.10' }] }]);
+  assert.deepEqual(await db.getOrderById(found, 42), { id: 42, total: '72.10' });
+  assert.match(found.calls[0].text, /SELECT \* FROM orders WHERE id = \$1/);
+  assert.deepEqual(found.calls[0].params, [42]);
+
+  const missing = fakeExecute([{ rows: [] }]);
+  assert.equal(await db.getOrderById(missing, 999), null);
+});
+
 test('updateOrderStatus updates the status column for the given id', async () => {
   const execute = fakeExecute([{ rows: [] }]);
   await db.updateOrderStatus(execute, 42, 'pago');
