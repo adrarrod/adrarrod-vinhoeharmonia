@@ -94,16 +94,18 @@ test('POST prices the preference from the stored order, ignoring a forged body t
       return { ok: true, json: async () => ({ id: 'pref1', init_point: 'https://mp.example/pref1' }) };
     }
   });
-  // O cliente tenta pagar R$0,01 por um item de R$57,10 — o corpo forjado é ignorado.
+  // O cliente tenta pagar R$0,01 por um pedido de R$149,20 — o corpo forjado é ignorado.
   const req = mockReq({
     method: 'POST',
     body: { orderId: 9, total: 0.01, items: [{ name: 'Grátis', qty: 1, price: 0.01 }] }
   });
   await handler(req, mockRes());
 
-  assert.equal(sent.items.length, 2);
-  assert.deepEqual(sent.items[0], { title: 'Porta 6', quantity: 2, unit_price: 57.1, currency_id: 'BRL' });
-  assert.deepEqual(sent.items[1], { title: 'Outro', quantity: 1, unit_price: 20, currency_id: 'BRL' });
+  // Item único com o total do pedido (subtotal 134.20 + frete 15.00), e não uma
+  // linha por vinho — que cobraria só o subtotal.
+  assert.equal(sent.items.length, 1);
+  assert.equal(sent.items[0].quantity, 1);
+  assert.equal(sent.items[0].unit_price, 149.2);
   assert.equal(sent.external_reference, '9');
 });
 
@@ -112,10 +114,8 @@ test('POST prices the preference from the stored order, ignoring a forged body t
 test('POST sends real numbers to Mercado Pago even when the driver returns strings', async () => {
   let sent = null;
   const handler = createPaymentHandler({
-    // Aqui até os números dentro do JSONB vêm como string, o pior caso.
-    execute: fakeExecute(orderRow({
-      items: [{ slug: 'porta-6', name: 'Porta 6', price: '57.10', qty: '2', note: '' }]
-    })),
+    // total NUMERIC chega como string do driver — o pior caso.
+    execute: fakeExecute(orderRow({ total: '149.20' })),
     env: { MP_ACCESS_TOKEN: 'tok', SITE_URL: 'https://example.com' },
     fetchImpl: async (url, options) => {
       sent = JSON.parse(options.body);
@@ -125,9 +125,7 @@ test('POST sends real numbers to Mercado Pago even when the driver returns strin
   await handler(mockReq({ method: 'POST', body: { orderId: 9 } }), mockRes());
 
   assert.equal(typeof sent.items[0].unit_price, 'number');
-  assert.equal(typeof sent.items[0].quantity, 'number');
-  assert.equal(sent.items[0].unit_price, 57.1);
-  assert.equal(sent.items[0].quantity, 2);
+  assert.equal(sent.items[0].unit_price, 149.2);
 });
 
 test('POST returns 502 when Mercado Pago fails', async () => {
