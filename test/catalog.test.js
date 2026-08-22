@@ -6,7 +6,7 @@ const Catalog = require('../js/catalog.js');
 const KNOWN_CATEGORIES = ['Tinto', 'Branco', 'Rosé', 'Espumante', 'Sobremesa'];
 
 test('MENU has the full catalog, every wine in a known category', () => {
-  assert.equal(Catalog.MENU.length, 119);
+  assert.equal(Catalog.MENU.length, 120);
   for (const wine of Catalog.MENU) {
     assert.ok(KNOWN_CATEGORIES.includes(wine.category), `unexpected category ${wine.category} on ${wine.name}`);
   }
