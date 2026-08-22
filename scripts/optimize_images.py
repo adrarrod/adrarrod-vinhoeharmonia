@@ -141,8 +141,7 @@ SOURCE_MAP = {
     # 'paso-de-los-andes-reserva-tinto' reaproveita a mesma foto de
     # 'passo-de-los-andes-carmenere' (confirmado pelo dono, não tem foto
     # própria) — já processada, não precisa reprocessar via este script.
-    # 'mon-basset-classique-aoc' era 'Bourdeaux.jpg', mas esse arquivo foi
-    # apagado antes de a entrada existir aqui; pendente de reenvio da foto.
+    'mon-basset-classique-aoc': 'Bourdeaux.jpg',
 }
 
 
