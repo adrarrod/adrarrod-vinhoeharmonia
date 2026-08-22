@@ -970,13 +970,12 @@
     pendente: 'Pagamento em análise. Assim que for aprovado, seu pedido segue normalmente — guarde o número acima.'
   };
 
-  // Sem o snapshot não há itens, endereço nem total para mostrar, então estas
-  // mensagens precisam se sustentar sozinhas (nada de "o PIX abaixo").
-  var MP_STANDALONE_MESSAGES = {
-    falha: 'Pagamento não aprovado. Nada foi cobrado — refaça o pedido na loja ou tente novamente mais tarde.',
-    pendente: 'Pagamento em análise. Assim que for aprovado, seu pedido segue normalmente — guarde o número acima.',
-    sucesso: 'Pagamento concluído. Guarde o número do pedido acima.'
-  };
+  // Sem o snapshot não há nada além da própria URL, e a URL não prova nada:
+  // qualquer pessoa pode montar ?pedido=999&pagamento=sucesso e mandar para
+  // outra. Por isso este caminho NUNCA afirma que o pagamento foi aprovado —
+  // só o caminho com snapshot (gravado pelo finishOrder desta sessão) pode.
+  var MP_STANDALONE_MESSAGE = 'Não conseguimos confirmar os detalhes deste pedido neste dispositivo. ' +
+    'Se você acabou de pagar, guarde o número do pedido e entre em contato com a loja para confirmar.';
 
   function initMercadoPagoReturn() {
     var pedido = null;
@@ -988,7 +987,9 @@
     } catch (e) {
       return;
     }
-    if (!pedido && !pagamento) return;
+    // Os dois parâmetros são obrigatórios: só o Mercado Pago devolve o cliente
+    // com o par completo, e ?pedido=1 sozinho não deve abrir confirmação.
+    if (!pedido || !pagamento) return;
 
     var snapshot = readJSON(PENDING_MP_KEY, null);
     // Usado uma vez só: recarregar a página não deve repetir a confirmação.
@@ -1003,18 +1004,21 @@
       // mesmo caminho do PIX aprovado: confirmação limpa, sem aviso.
       completeOrderUI(snapshot, MP_WARNINGS[pagamento] || null);
     } else {
-      // Cliente voltou em outro navegador/dispositivo, ou limpou o localStorage.
-      showStandaloneConfirmation(pedido, pagamento);
+      // Cliente voltou em outro navegador/dispositivo, limpou o localStorage —
+      // ou a URL simplesmente não veio de um pedido feito aqui.
+      showStandaloneConfirmation(pedido);
     }
 
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* ignore */ }
   }
 
-  function showStandaloneConfirmation(pedido, pagamento) {
+  function showStandaloneConfirmation(pedido) {
     $('#cf-number').textContent = pedido ? '#' + pedido : '#—';
 
     var warn = $('#cf-card-warning');
-    warn.textContent = MP_STANDALONE_MESSAGES[pagamento] || MP_STANDALONE_MESSAGES.sucesso;
+    // Mensagem neutra independente do valor de pagamento na URL, inclusive
+    // 'sucesso': aqui não há nada que confirme o pagamento de fato.
+    warn.textContent = MP_STANDALONE_MESSAGE;
     warn.hidden = false;
 
     // Sem snapshot não há valor a cobrar por PIX nem itens para listar.
@@ -1075,10 +1079,13 @@
     initRepeatOrder();
     initPwaBanner();
     initDeepLink();
+    // O gate de idade vem ANTES do retorno do Mercado Pago: assim ele nunca
+    // abre por cima de uma confirmação já na tela (initDeepLink continua antes
+    // dele, que é quem consome o pendingDeepLink).
+    initAgeGate();
     initMercadoPagoReturn();
     renderFab();
     renderCart();
-    initAgeGate();
 
     document.addEventListener('keydown', function (event) {
       if (event.key !== 'Escape') return;
