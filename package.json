@@ -5,7 +5,7 @@
   "description": "Loja online da Vinho & Harmonia",
   "scripts": {
     "test": "node --test",
-    "dev": "node dev-server.js"
+    "dev": "node --env-file-if-exists=.env dev-server.js"
   },
   "dependencies": {
     "@vercel/postgres": "^0.10.0"
