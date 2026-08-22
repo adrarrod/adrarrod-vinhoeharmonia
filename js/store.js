@@ -753,17 +753,27 @@
         items: payload.items.map(function (i) { return { name: i.name, qty: i.qty, price: i.price }; })
       })
     })
-      .then(function (res) { return res.json().catch(function () { return {}; }); })
-      .then(function (data) {
-        if (data && data.configured && data.initPoint) {
+      .then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (data) {
+          return { ok: res.ok, data: data };
+        });
+      })
+      .then(function (result) {
+        var data = result.data;
+        if (result.ok && data && data.configured && data.initPoint) {
           window.location.href = data.initPoint;
           return null;
         }
-        completeOrderUI(snapshot, 'Pagamento por cartão em configuração, escolha PIX por enquanto.');
+        // result.ok + configured:false => cartão realmente ainda não configurado.
+        // !result.ok (ex: 502 do Mercado Pago) => falha real e temporária, não "não configurado".
+        var cardWarning = result.ok
+          ? 'Pagamento por cartão em configuração, escolha PIX por enquanto.'
+          : 'Não foi possível iniciar o pagamento por cartão agora. Use o PIX abaixo, ou tente novamente mais tarde.';
+        completeOrderUI(snapshot, cardWarning);
         return null;
       })
       .catch(function () {
-        completeOrderUI(snapshot, 'Pagamento por cartão em configuração, escolha PIX por enquanto.');
+        completeOrderUI(snapshot, 'Não foi possível iniciar o pagamento por cartão agora. Use o PIX abaixo, ou tente novamente mais tarde.');
         return null;
       });
   }
@@ -802,7 +812,10 @@
       '<div class="sh-summary-line"><span>' + esc(payload.customer.fullName) + '</span><span>' + esc(payload.customer.phone) + '</span></div>';
 
     var pixBox = $('#cf-pix');
-    if (payload.paymentMethod === 'pix') {
+    // Mostra a chave PIX também quando o pedido foi feito com Cartão mas o
+    // pagamento por cartão não pôde ser iniciado (cardWarning) — nesse caso
+    // o PIX é a única forma de pagamento que realmente funciona agora.
+    if (payload.paymentMethod === 'pix' || cardWarning) {
       pixBox.hidden = false;
       $('#cf-pix-key').textContent = PIX_KEY;
       $('#cf-pix-amount').textContent = money(order.total);
