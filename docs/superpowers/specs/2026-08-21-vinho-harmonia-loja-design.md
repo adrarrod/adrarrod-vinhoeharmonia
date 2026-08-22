@@ -29,9 +29,7 @@ As decisões abaixo resolvem esses conflitos com base nas respostas do usuário.
 7. **Gate de idade:** modal "18 anos ou mais?" na entrada do site, além do aviso
    fixo no rodapé e no checkout. Guardado em `localStorage` para não repetir.
 8. **Horário:** loja sempre aberta — sem lógica de "aberto agora" condicional.
-9. **Chave PIX:** `contato@vinhoeharmnia.com.br` (grafia informada pelo usuário —
-   **confirmar antes do deploy final**, pois pode ser erro de digitação de
-   "vinhoharmonia").
+9. **Chave PIX:** `contato@vinhoharmonia.com.br` (confirmado pelo usuário).
 10. **Credenciais Mercado Pago / Melhor Envio / endereço da loja:** ainda não
     disponíveis. O sistema precisa funcionar sem elas (ver "Modo sem chaves"
     abaixo) e usar placeholders documentados em `.env.example`.
@@ -93,8 +91,9 @@ sem eles:
 
 20 vinhos tintos, todos com foto correspondente em `/img`. Campos: nome, categoria
 (hoje só "Tinto"), preço (BRL), país, uva. Duas correspondências de foto foram
-inferidas por marca/estilo em vez de nome exato e precisam de confirmação visual
-antes de publicar:
+inferidas por marca/estilo em vez de nome exato — aprovadas pelo usuário junto
+com o restante da especificação, mas vale uma checagem visual rápida quando o
+catálogo estiver montado:
 
 - `VESCOVO ROSSO.jpg` → **Rosso Toscana Igt Rifugio Del Vescovo**
 - `MioloPinotNoir.jpg` → **SINGLE VINEYARD Pinot Noir** (Brasil, Miolo)
@@ -174,7 +173,7 @@ MP_ACCESS_TOKEN=           # token do Mercado Pago (Checkout Pro) — pegar depo
 MELHOR_ENVIO_TOKEN=        # token da API do Melhor Envio — pegar depois
 MELHOR_ENVIO_CEP_ORIGEM=   # CEP de origem da loja — pegar depois
 ADMIN_PASSWORD=            # senha do painel /admin
-PIX_KEY=contato@vinhoeharmnia.com.br   # confirmar grafia antes do deploy
+PIX_KEY=contato@vinhoharmonia.com.br
 ```
 
 ## Deploy
