@@ -94,7 +94,7 @@
           '<div><span class="order-meta-label">Cliente</span><span>' + escapeHtml(order.full_name) + '</span></div>' +
           '<div><span class="order-meta-label">Telefone</span><span>' + escapeHtml(order.phone) + '</span></div>' +
           '<div><span class="order-meta-label">Entrega</span><span>' + escapeHtml(deliveryLabel) + '</span></div>' +
-          '<div><span class="order-meta-label">Pagamento</span><span>' + escapeHtml(paymentLabel) + ' · ' + escapeHtml(order.payment_status || '—') + '</span></div>' +
+          '<div><span class="order-meta-label">Pagamento</span><span>' + escapeHtml(paymentLabel) + '</span></div>' +
         '</div>' +
         '<ul class="order-items">' + renderItems(order.items) + '</ul>' +
         '<div class="order-totals">' +
