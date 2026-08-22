@@ -41,6 +41,7 @@ test('buildSessionCookie sets HttpOnly, SameSite and the token', () => {
   const cookie = auth.buildSessionCookie('sometoken');
   assert.match(cookie, /^admin_session=sometoken;/);
   assert.match(cookie, /HttpOnly/);
+  assert.match(cookie, /Secure/);
   assert.match(cookie, /SameSite=Strict/);
   assert.match(cookie, /Path=\//);
 });

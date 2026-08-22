@@ -34,6 +34,23 @@ test('rejected payment sets order status to pagamento_recusado', async () => {
   assert.equal(updates[0].params[0], 'pagamento_recusado');
 });
 
+test('a failing status lookup still returns 200 so Mercado Pago does not retry forever', async () => {
+  let called = false;
+  const deps = {
+    env: { MP_ACCESS_TOKEN: 'tok' },
+    // fetchPaymentStatus lança em resposta não-200; é esse caminho que o handler precisa absorver.
+    fetchImpl: async () => ({ ok: false, status: 500, json: async () => ({}) }),
+    execute: async () => { called = true; return { rows: [] }; }
+  };
+  const handler = createWebhookHandler(deps);
+  const req = mockReq({ method: 'POST', body: { data: { id: 'pay123' } } });
+  const res = mockRes();
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { received: true, warning: 'status_check_failed' });
+  assert.equal(called, false);
+});
+
 test('missing payment id returns 200 without touching the db (Mercado Pago retries on non-2xx)', async () => {
   let called = false;
   const deps = { env: {}, fetchImpl: async () => {}, execute: async () => { called = true; return { rows: [] }; } };

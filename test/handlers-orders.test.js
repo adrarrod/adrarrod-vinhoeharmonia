@@ -65,6 +65,17 @@ test('GET with a valid admin session returns the order list', async () => {
   assert.equal(res.body.length, 2);
 });
 
+test('GET returns 500 when the database fails instead of throwing', async () => {
+  const token = auth.signSession(PASSWORD, SECRET);
+  const deps = makeDeps({ execute: async () => { throw new Error('connection refused'); } });
+  const handler = createOrdersHandler(deps);
+  const req = mockReq({ method: 'GET', headers: { cookie: `admin_session=${token}` } });
+  const res = mockRes();
+  await handler(req, res);
+  assert.equal(res.statusCode, 500);
+  assert.deepEqual(res.body, { error: 'internal_error' });
+});
+
 test('unsupported method returns 405', async () => {
   const handler = createOrdersHandler(makeDeps());
   const req = mockReq({ method: 'DELETE' });
