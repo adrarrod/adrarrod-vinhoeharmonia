@@ -225,6 +225,21 @@ test('listOrdersForAdmin delegates to db.listOrders', async () => {
   assert.deepEqual(orders, [{ id: 1 }]);
 });
 
+test('getOrderForPayment delegates to db.getOrderById', async () => {
+  const execute = async (text, params) => {
+    assert.match(text, /SELECT \* FROM orders WHERE id = \$1/);
+    assert.deepEqual(params, [7]);
+    return { rows: [{ id: 7, total: '129.20' }] };
+  };
+  const order = await svc.getOrderForPayment({ execute }, 7);
+  assert.deepEqual(order, { id: 7, total: '129.20' });
+});
+
+test('getOrderForPayment returns null when the order does not exist', async () => {
+  const execute = async () => ({ rows: [] });
+  assert.equal(await svc.getOrderForPayment({ execute }, 123), null);
+});
+
 test('setOrderStatus delegates to db.updateOrderStatus', async () => {
   const execute = async (text, params) => {
     assert.match(text, /UPDATE orders SET status/);
