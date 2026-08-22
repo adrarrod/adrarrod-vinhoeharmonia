@@ -23,15 +23,19 @@ Em Project Settings → Environment Variables, adicione (veja `.env.example`):
   pagamento por cartão fica "em configuração" e só PIX funciona — o site
   continua operando normalmente.
 
-> ⚠️ **Antes de configurar `MP_ACCESS_TOKEN` em produção**, dois pontos precisam ser
-> resolvidos no código (hoje o pagamento por cartão está inerte, então isso não afeta
-> a loja rodando só com PIX):
-> 1. `lib/handlers/payment.js` cobra o valor que o NAVEGADOR envia, sem reler o pedido
->    gravado no banco — um cliente poderia manipular o valor cobrado.
-> 2. O retorno do Mercado Pago (sucesso/falha/pendente) não é tratado pelo site — o
->    cliente volta sem confirmação e o carrinho não é limpo, risco de pedido duplicado.
+> ✅ Os dois pontos que bloqueavam o pagamento por cartão foram corrigidos:
+> 1. `lib/handlers/payment.js` agora relê o pedido gravado no banco (só o `orderId`
+>    vem do navegador) — o valor cobrado não pode mais ser manipulado pelo cliente.
+> 2. O retorno do Mercado Pago (`?pedido=X&pagamento=sucesso|falha|pendente`) é
+>    tratado em `js/store.js`: a confirmação aparece e o carrinho é limpo.
 >
-> Só habilite pagamento por cartão depois de corrigir os dois pontos.
+> ⚠️ **`SITE_URL` precisa ser a URL pública em https.** O Mercado Pago recusa a
+> criação da preferência (`400 auto_return invalid. back_url.success must be
+> defined`) quando as `back_urls` apontam para `http://localhost`. Em produção,
+> com a URL da Vercel, a preferência é criada normalmente.
+>
+> Continua pendente (não bloqueia o cartão, mas vale fazer): verificar a assinatura
+> `x-signature` do webhook do Mercado Pago.
 
 - `MELHOR_ENVIO_TOKEN` e `MELHOR_ENVIO_CEP_ORIGEM` — token e CEP de origem da
   loja no Melhor Envio. Sem eles, o frete usa a regra local (grátis acima de
