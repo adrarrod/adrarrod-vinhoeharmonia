@@ -51,6 +51,21 @@ test('a failing status lookup still returns 200 so Mercado Pago does not retry f
   assert.equal(called, false);
 });
 
+test('a failing status write still returns 200 so Mercado Pago does not retry forever', async () => {
+  const deps = {
+    env: { MP_ACCESS_TOKEN: 'tok' },
+    fetchImpl: async () => ({ ok: true, json: async () => ({ status: 'approved', external_reference: '9' }) }),
+    // Consulta ao Mercado Pago funciona; quem falha é a gravação no Postgres.
+    execute: async () => { throw new Error('connection terminated'); }
+  };
+  const handler = createWebhookHandler(deps);
+  const req = mockReq({ method: 'POST', body: { data: { id: 'pay123' } } });
+  const res = mockRes();
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { received: true, warning: 'status_check_failed' });
+});
+
 test('missing payment id returns 200 without touching the db (Mercado Pago retries on non-2xx)', async () => {
   let called = false;
   const deps = { env: {}, fetchImpl: async () => {}, execute: async () => { called = true; return { rows: [] }; } };

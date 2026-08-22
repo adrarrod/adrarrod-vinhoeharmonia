@@ -64,6 +64,15 @@ público** (e para o Google) até serem trocados. Abra o arquivo e ajuste:
 - **Chave PIX.** Confira se `contato@vinhoharmonia.com.br` em `js/store.js` é mesmo
   a chave que deve receber os pagamentos (veja a seção "Chave PIX" abaixo).
 
+> ⚠️ **Depois de editar qualquer arquivo do app shell, incremente a versão do cache
+> em `sw.js`.** O service worker serve esses arquivos do cache primeiro, sem
+> revalidar — quem já visitou o site continua vendo a cidade, o telefone, o endereço,
+> os preços e o domínio antigos até o nome do cache mudar. Troque
+> `CACHE_NAME = 'vinho-harmonia-shell-v1'` para `'...-v2'`, depois `'...-v3'`, e assim
+> por diante. Os arquivos cacheados são `index.html`, `css/styles.css`,
+> `js/catalog.js`, `js/pricing.js` e `js/store.js` — a lista completa e atual está em
+> `SHELL_ASSETS`, no topo do `sw.js`.
+
 ## Trocar o catálogo (produtos, preços, fotos)
 
 O catálogo é o array `MENU` no topo de `js/catalog.js`. Cada vinho é um objeto
@@ -76,11 +85,10 @@ Para trocar fotos: coloque o arquivo novo em `img/`, aponte `image` para ele no
 `js/catalog.js`, e rode `python3 scripts/optimize_images.py` de novo se quiser
 que o script também otimize as novas fotos (ajuste o `SOURCE_MAP` no script).
 
-> ⚠️ **Sempre que editar `js/catalog.js` (produtos, preços, fotos) ou `js/pricing.js`
-> (cupons), incremente a versão do cache em `sw.js`** — troque
-> `CACHE_NAME = 'vinho-harmonia-shell-v1'` para `'...-v2'`, depois `'...-v3'`, e assim
-> por diante. O service worker serve esses arquivos do cache primeiro, então quem já
-> visitou o site continua vendo preços e produtos antigos até o nome do cache mudar.
+> ⚠️ `js/catalog.js` e `js/pricing.js` fazem parte do app shell cacheado pelo service
+> worker: depois de mexer em produtos, preços, fotos ou cupons, **incremente o
+> `CACHE_NAME` em `sw.js`** — veja o aviso no fim da seção "Antes de divulgar o site".
+> Sem isso, quem já visitou o site continua vendo preços e produtos antigos.
 
 Uma observação sobre nomes de arquivo: a Vercel roda em Linux, que diferencia
 maiúsculas de minúsculas. `img/Foto.jpg` e `img/foto.jpg` são arquivos diferentes lá
