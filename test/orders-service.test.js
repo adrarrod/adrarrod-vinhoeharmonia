@@ -55,6 +55,78 @@ test('validateOrderPayload rejects an empty cart', () => {
   assert.ok(errors.includes('items'));
 });
 
+// Cada uma dessas quantidades falsificadas distorce o total gravado; nenhuma
+// pode chegar a computeTotals/insertOrder.
+const BAD_QTIES = [
+  ['fracionária (0.5 = 50% de desconto)', 0.5],
+  ['ausente', undefined],
+  ['não numérica', '2'],
+  ['negativa', -1],
+  ['acima do limite de 99', 100]
+];
+
+for (const [label, qty] of BAD_QTIES) {
+  test(`validateOrderPayload rejects an item with qty ${label}`, () => {
+    const item = { slug: 'porta-6', name: 'Porta 6', price: 57.1 };
+    if (qty !== undefined) item.qty = qty;
+    const { valid, errors } = svc.validateOrderPayload(validPayload({ items: [item] }));
+    assert.equal(valid, false);
+    assert.ok(errors.includes('items'));
+  });
+
+  test(`createOrder rejects qty ${label} without touching the db`, async () => {
+    let called = false;
+    const execute = async () => { called = true; return { rows: [] }; };
+    const item = { slug: 'porta-6', name: 'Porta 6', price: 57.1 };
+    if (qty !== undefined) item.qty = qty;
+    await assert.rejects(() => svc.createOrder({ execute }, validPayload({ items: [item] })), svc.ValidationError);
+    assert.equal(called, false);
+  });
+}
+
+test('validateOrderPayload accepts qty at both ends of the allowed range', () => {
+  assert.equal(svc.MAX_QTY_PER_ITEM, 99);
+  for (const qty of [1, svc.MAX_QTY_PER_ITEM]) {
+    const payload = validPayload({ items: [{ slug: 'porta-6', name: 'Porta 6', price: 57.1, qty }] });
+    assert.equal(svc.validateOrderPayload(payload).valid, true);
+  }
+});
+
+test('validateOrderPayload rejects a negative freight cost', () => {
+  const payload = validPayload({
+    delivery: { ...validPayload().delivery, freightCost: -50 }
+  });
+  const { valid, errors } = svc.validateOrderPayload(payload);
+  assert.equal(valid, false);
+  assert.ok(errors.includes('freightCost'));
+});
+
+test('validateOrderPayload rejects a non-numeric or missing freight cost on delivery', () => {
+  for (const freightCost of ['15', NaN, null]) {
+    const payload = validPayload({ delivery: { ...validPayload().delivery, freightCost } });
+    const { valid, errors } = svc.validateOrderPayload(payload);
+    assert.equal(valid, false);
+    assert.ok(errors.includes('freightCost'));
+  }
+
+  const omitted = validPayload();
+  delete omitted.delivery.freightCost;
+  assert.equal(svc.validateOrderPayload(omitted).valid, false);
+});
+
+test('validateOrderPayload allows an omitted freight cost on pickup', () => {
+  const payload = validPayload({ delivery: { type: 'pickup', address: null } });
+  assert.equal(svc.validateOrderPayload(payload).valid, true);
+});
+
+test('createOrder rejects a negative freight cost without touching the db', async () => {
+  let called = false;
+  const execute = async () => { called = true; return { rows: [] }; };
+  const payload = validPayload({ delivery: { ...validPayload().delivery, freightCost: -50 } });
+  await assert.rejects(() => svc.createOrder({ execute }, payload), svc.ValidationError);
+  assert.equal(called, false);
+});
+
 test('createOrder validates, computes totals, persists via deps.execute, returns totals + id', async () => {
   const calls = [];
   const execute = async (text, params) => {
