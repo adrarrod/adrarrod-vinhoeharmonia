@@ -1,2 +1,10 @@
 .worktrees/
 .claude/
+
+# Local notes and credentials the user drops into the project root —
+# never project deliverables, and Mercado.txt / Melhor_Envio.txt contain
+# real API secrets that must never reach git history.
+Mercado.txt
+Melhor_Envio.txt
+Melhorias_Lista.txt
+Prompt_Vinho.txt
