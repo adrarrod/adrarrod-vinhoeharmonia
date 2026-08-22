@@ -15,6 +15,10 @@
   const ordersStatus = document.getElementById('orders-status');
   const ordersList = document.getElementById('orders-list');
 
+  const shippingSection = document.getElementById('admin-shipping');
+  const shippingStatus = document.getElementById('melhor-envio-status');
+  const shippingConnectLink = document.getElementById('melhor-envio-connect-link');
+
   const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
@@ -46,11 +50,53 @@
   function showLogin() {
     loginSection.hidden = false;
     ordersSection.hidden = true;
+    shippingSection.hidden = true;
   }
 
   function showOrders() {
     loginSection.hidden = true;
     ordersSection.hidden = false;
+    shippingSection.hidden = false;
+  }
+
+  function showMelhorEnvioNotice() {
+    const params = new URLSearchParams(window.location.search);
+    const notice = params.get('melhor_envio');
+    if (!notice) return false;
+    if (notice === 'conectado') {
+      shippingStatus.textContent = 'Melhor Envio conectado com sucesso!';
+      shippingConnectLink.hidden = true;
+    } else {
+      shippingStatus.textContent = 'Não foi possível conectar ao Melhor Envio. Tente novamente.';
+      shippingStatus.classList.add('card-msg');
+      shippingConnectLink.hidden = false;
+    }
+    params.delete('melhor_envio');
+    const newSearch = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (newSearch ? '?' + newSearch : ''));
+    return true;
+  }
+
+  async function loadMelhorEnvioStatus() {
+    try {
+      const res = await fetch('/api/melhor-envio-status', { credentials: 'same-origin' });
+      if (!res.ok) {
+        shippingStatus.textContent = 'Não foi possível verificar a conexão com o Melhor Envio.';
+        shippingConnectLink.hidden = false;
+        return;
+      }
+      const data = await res.json();
+      if (data.connected) {
+        shippingStatus.textContent = 'Conectado ✅';
+        shippingConnectLink.hidden = true;
+      } else {
+        shippingStatus.textContent = 'Não conectado — o frete usa o cálculo padrão até você conectar.';
+        shippingConnectLink.hidden = false;
+      }
+    } catch (err) {
+      shippingStatus.textContent = 'Falha de conexão ao verificar o Melhor Envio.';
+      shippingConnectLink.hidden = false;
+    }
   }
 
   function setOrdersStatus(message, isError) {
@@ -142,6 +188,9 @@
       showOrders();
       setOrdersStatus('', false);
       renderOrders(orders);
+      if (!showMelhorEnvioNotice()) {
+        loadMelhorEnvioStatus();
+      }
     } catch (err) {
       showOrders();
       ordersList.innerHTML = '';

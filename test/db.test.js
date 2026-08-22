@@ -60,3 +60,25 @@ test('updateOrderStatus updates the status column for the given id', async () =>
   assert.match(execute.calls[0].text, /UPDATE orders SET status/);
   assert.deepEqual(execute.calls[0].params, ['pago', 42]);
 });
+
+test('getMelhorEnvioTokens ensures its own schema then selects the single stored row', async () => {
+  const execute = fakeExecute([{ rows: [] }, { rows: [{ access_token: 'AT', refresh_token: 'RT', expires_at: '2026-09-01T00:00:00.000Z' }] }]);
+  const tokens = await db.getMelhorEnvioTokens(execute);
+  assert.match(execute.calls[0].text, /CREATE TABLE IF NOT EXISTS melhor_envio_tokens/);
+  assert.match(execute.calls[1].text, /SELECT access_token, refresh_token, expires_at FROM melhor_envio_tokens WHERE id = 1/);
+  assert.deepEqual(tokens, { access_token: 'AT', refresh_token: 'RT', expires_at: '2026-09-01T00:00:00.000Z' });
+});
+
+test('getMelhorEnvioTokens returns null when nothing has been connected yet', async () => {
+  const execute = fakeExecute([{ rows: [] }, { rows: [] }]);
+  assert.equal(await db.getMelhorEnvioTokens(execute), null);
+});
+
+test('saveMelhorEnvioTokens ensures its own schema then upserts the single row', async () => {
+  const execute = fakeExecute([{ rows: [] }, { rows: [] }]);
+  await db.saveMelhorEnvioTokens(execute, { accessToken: 'AT', refreshToken: 'RT', expiresAt: '2026-09-01T00:00:00.000Z' });
+  assert.match(execute.calls[0].text, /CREATE TABLE IF NOT EXISTS melhor_envio_tokens/);
+  assert.match(execute.calls[1].text, /INSERT INTO melhor_envio_tokens/);
+  assert.match(execute.calls[1].text, /ON CONFLICT \(id\) DO UPDATE/);
+  assert.deepEqual(execute.calls[1].params, ['AT', 'RT', '2026-09-01T00:00:00.000Z']);
+});

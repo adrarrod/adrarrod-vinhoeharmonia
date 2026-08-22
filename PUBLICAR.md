@@ -45,9 +45,27 @@ Em Project Settings → Environment Variables, adicione (veja `.env.example`):
      (troque pelo seu domínio se for diferente).
   3. Marque o evento **Pagamentos**.
   4. Salve e copie a **chave secreta** exibida — esse é o valor de `MP_WEBHOOK_SECRET`.
-- `MELHOR_ENVIO_TOKEN` e `MELHOR_ENVIO_CEP_ORIGEM` — token e CEP de origem da
-  loja no Melhor Envio. Sem eles, o frete usa a regra local (grátis acima de
-  R$150, R$15 fixo abaixo).
+- `MELHOR_ENVIO_CLIENT_ID`, `MELHOR_ENVIO_CLIENT_SECRET`, `MELHOR_ENVIO_REDIRECT_URI`
+  e `MELHOR_ENVIO_CEP_ORIGEM` — integração com o Melhor Envio. Sem elas (ou
+  antes de conectar a conta), o frete usa a regra local (grátis acima de
+  R$150, R$15 fixo abaixo). Para configurar:
+  1. Crie um app em **melhorenvio.com.br** → **Gerenciar** → **Meus Apps** →
+     **Adicionar aplicação**. Anote o **Client ID** e o **Client Secret**.
+  2. Em **Redirecionar para**, cadastre `https://vinho-harmonia.vercel.app/api/melhor-envio-callback`
+     (troque pelo seu domínio se for diferente) — esse mesmo valor vai em
+     `MELHOR_ENVIO_REDIRECT_URI`.
+  3. Defina `MELHOR_ENVIO_CEP_ORIGEM` com o CEP de onde os pacotes saem.
+  4. Faça o deploy com essas variáveis configuradas, entre em `/admin.html`
+     com a senha do painel e clique em **"Conectar Melhor Envio"** na seção
+     "Frete — Melhor Envio". Você será levado à tela de login do Melhor Envio
+     — **essa etapa é pessoal e intransferível: só você deve digitar sua senha
+     ali**, nunca compartilhe essa senha com ninguém, incluindo o assistente
+     que te ajudou a montar o site. Depois de autorizar, o painel volta
+     mostrando "Conectado ✅".
+  5. O token de acesso dura 30 dias e é renovado automaticamente pelo site
+     usando o token de renovação (válido por 45 dias) — nenhuma ação manual é
+     necessária depois da primeira conexão, a menos que o token de renovação
+     também expire (aí basta clicar em "Conectar Melhor Envio" de novo).
 - `SITE_URL` — a URL final do site na Vercel (ex.: `https://vinho-harmonia.vercel.app`).
 
 Depois de configurar, clique em "Redeploy".
@@ -67,10 +85,10 @@ público** (e para o Google) até serem trocados. Abra o arquivo e ajuste:
 - **Telefone e endereço no rodapé.** O mesmo endereço e telefone de exemplo também
   aparecem no rodapé visível da página — procure por `Rua Exemplo, 000` e
   `(00) 00000-0000`.
-- **Domínio.** `https://vinhoeharmonia.vercel.app` está escrito direto no HTML em
+- **Domínio.** `https://vinho-harmonia.vercel.app` está escrito direto no HTML em
   cinco lugares: `<link rel="canonical">`, `og:url`, `og:image`, `twitter:image` e,
   no JSON-LD, os campos `url` e `image`. Se o site for para outro domínio, troque
-  todos (uma busca-e-substitui por `vinhoeharmonia.vercel.app` resolve). URLs
+  todos (uma busca-e-substitui por `vinho-harmonia.vercel.app` resolve). URLs
   canônicas erradas atrapalham a indexação e quebram a prévia dos links no
   WhatsApp e nas redes sociais.
 - **Chave PIX.** Confira se `contato@vinhoharmonia.com.br` em `js/store.js` é mesmo
