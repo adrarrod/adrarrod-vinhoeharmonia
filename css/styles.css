@@ -711,6 +711,63 @@ main { padding-bottom: 120px; }
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ---------------------------------------------------------- admin panel -- */
+.admin-main { padding-top: 28px; padding-bottom: 60px; max-width: 760px; }
+
+.admin-login { max-width: 360px; margin: 40px auto 0; }
+
+.admin-orders-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.admin-orders-head h2 { font-size: 1.3rem; }
+
+.orders-status { font-size: .85rem; color: var(--silver); margin: 0 0 14px; }
+
+.orders-empty { color: var(--muted); text-align: center; padding: 40px 10px; }
+
+.order-card {
+  background: var(--surface);
+  border: 1px solid rgba(184, 184, 192, .15);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-soft);
+}
+
+.order-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.order-card-head h3 { font-size: 1.05rem; font-family: var(--font-body); font-weight: 700; }
+
+.order-badge {
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  font-weight: 700;
+  color: var(--gold-soft);
+  background: rgba(196, 154, 61, .14);
+  border: 1px solid rgba(196, 154, 61, .4);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.order-date { font-size: .78rem; color: var(--muted); margin: 2px 0 10px; }
+
+.order-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin-bottom: 10px;
+}
+.order-meta-grid div { display: flex; flex-direction: column; gap: 2px; font-size: .86rem; }
+.order-meta-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .7px; color: var(--silver); font-weight: 600; }
+
+.order-items { margin: 0 0 10px; padding-left: 18px; font-size: .86rem; color: var(--text); }
+.order-item-note { color: var(--muted); font-size: .8rem; }
+
+.order-totals { margin-top: 4px; }
+
+@media (min-width: 620px) {
+  .order-meta-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }

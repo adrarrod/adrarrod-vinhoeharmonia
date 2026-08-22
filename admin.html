@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Painel administrativo — Vinho &amp; Harmonia</title>
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ==================================================== cabeçalho ==== -->
+  <header class="site-header">
+    <div class="wrap">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">V&amp;H</div>
+        <div class="brand-text">
+          <h1>Painel administrativo</h1>
+          <p class="brand-slogan">Pedidos — Vinho &amp; Harmonia</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap admin-main">
+
+    <!-- ============================================ formulário de senha -->
+    <section class="fieldset-block admin-login" id="admin-login">
+      <div class="block-title">Acesso restrito</div>
+      <form id="admin-login-form" novalidate>
+        <div class="field">
+          <label for="admin-password">Senha</label>
+          <input id="admin-password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+
+        <div class="form-errors" id="admin-login-error" hidden></div>
+
+        <button class="btn btn-gold btn-block" type="submit" id="admin-login-submit" style="margin-top:12px">Entrar</button>
+      </form>
+    </section>
+
+    <!-- ==================================================== lista de pedidos -->
+    <section class="admin-orders" id="admin-orders" hidden>
+      <div class="admin-orders-head">
+        <h2>Pedidos</h2>
+      </div>
+
+      <p class="orders-status" id="orders-status" hidden></p>
+
+      <div id="orders-list"></div>
+    </section>
+
+  </main>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>
