@@ -164,7 +164,11 @@
       });
 
       if (!res.ok) {
-        loginErrorBox.textContent = 'Senha incorreta. Tente novamente.';
+        // 503 = ADMIN_PASSWORD/ADMIN_SESSION_SECRET não configuradas no ambiente.
+        // Sem essa distinção o dono da loja fica tentando senhas à toa.
+        loginErrorBox.textContent = res.status === 503
+          ? 'Painel administrativo ainda não configurado — defina ADMIN_PASSWORD e ADMIN_SESSION_SECRET no ambiente (veja PUBLICAR.md).'
+          : 'Senha incorreta. Tente novamente.';
         loginErrorBox.hidden = false;
         return;
       }
