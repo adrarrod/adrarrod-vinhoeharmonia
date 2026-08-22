@@ -66,7 +66,14 @@ const server = http.createServer(async (req, res) => {
     const body = req.method === 'POST' || req.method === 'PATCH' ? await readBody(req) : null;
     const fakeReq = { method: req.method, headers: req.headers, query, body, cookies: parseCookies(req.headers.cookie) };
     wrapRes(res);
-    await handler(fakeReq, res);
+    try {
+      await handler(fakeReq, res);
+    } catch (error) {
+      console.error('API handler error:', error);
+      if (!res.writableEnded) {
+        res.status(500).json({ error: 'internal_error' });
+      }
+    }
     return;
   }
 
