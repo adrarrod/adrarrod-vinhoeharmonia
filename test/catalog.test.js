@@ -3,10 +3,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Catalog = require('../js/catalog.js');
 
-test('MENU has 20 wines, all category Tinto', () => {
-  assert.equal(Catalog.MENU.length, 20);
+const KNOWN_CATEGORIES = ['Tinto', 'Branco', 'Rosé', 'Espumante', 'Sobremesa'];
+
+test('MENU has the full catalog, every wine in a known category', () => {
+  assert.equal(Catalog.MENU.length, 119);
   for (const wine of Catalog.MENU) {
-    assert.equal(wine.category, 'Tinto');
+    assert.ok(KNOWN_CATEGORIES.includes(wine.category), `unexpected category ${wine.category} on ${wine.name}`);
   }
 });
 
@@ -40,6 +42,11 @@ test('suggestPairings prefers same country or grape when available', () => {
   assert.ok(suggestions.some((w) => w.country === 'França' || w.grape === 'Blend'));
 });
 
-test('CATEGORIES lists each distinct category once', () => {
-  assert.deepEqual(Catalog.CATEGORIES, ['Tinto']);
+test('CATEGORIES lists each distinct category once, in order of first appearance', () => {
+  const expected = [];
+  for (const wine of Catalog.MENU) {
+    if (!expected.includes(wine.category)) expected.push(wine.category);
+  }
+  assert.deepEqual(Catalog.CATEGORIES, expected);
+  assert.equal(new Set(Catalog.CATEGORIES).size, Catalog.CATEGORIES.length);
 });
