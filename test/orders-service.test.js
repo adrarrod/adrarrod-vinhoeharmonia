@@ -40,9 +40,11 @@ test('validateOrderPayload rejects underage birth dates', () => {
   assert.ok(errors.includes('birthDate'));
 });
 
-test('validateOrderPayload requires address fields only when delivery type is delivery', () => {
+test('validateOrderPayload rejects any delivery type other than delivery (loja só faz envios)', () => {
   const pickup = validPayload({ delivery: { type: 'pickup', address: null, freightCost: 0 } });
-  assert.equal(svc.validateOrderPayload(pickup).valid, true);
+  const { valid, errors } = svc.validateOrderPayload(pickup);
+  assert.equal(valid, false);
+  assert.ok(errors.includes('deliveryType'));
 
   const missingAddress = validPayload({ delivery: { type: 'delivery', address: { street: '', number: '', complement: '', cep: '', neighborhood: '', city: '', state: '' }, freightCost: 15 } });
   assert.equal(svc.validateOrderPayload(missingAddress).valid, false);
@@ -114,11 +116,6 @@ test('validateOrderPayload rejects a non-numeric or missing freight cost on deli
   assert.equal(svc.validateOrderPayload(omitted).valid, false);
 });
 
-test('validateOrderPayload allows an omitted freight cost on pickup', () => {
-  const payload = validPayload({ delivery: { type: 'pickup', address: null } });
-  assert.equal(svc.validateOrderPayload(payload).valid, true);
-});
-
 test('createOrder rejects a negative freight cost without touching the db', async () => {
   let called = false;
   const execute = async () => { called = true; return { rows: [] }; };
@@ -174,12 +171,12 @@ test('createOrder ignores a forged item price and charges the catalog price', as
   };
   // Porta 6 custa R$57,10 no catálogo; o cliente tenta pagar R$0,01.
   const payload = validPayload({
-    items: [{ slug: 'porta-6', name: 'Grátis', price: 0.01, qty: 2 }],
-    delivery: { type: 'pickup', address: null, freightCost: 0 }
+    items: [{ slug: 'porta-6', name: 'Grátis', price: 0.01, qty: 2 }]
   });
   const result = await svc.createOrder({ execute }, payload);
   assert.equal(result.subtotal, 114.2);
-  assert.equal(result.total, 114.2);
+  // subtotal (114.20) + frete (15, do validPayload default) = 129.20
+  assert.equal(result.total, 129.2);
 
   const insert = calls.find((c) => c.text.startsWith('INSERT'));
   const storedItems = JSON.parse(insert.params[9]);

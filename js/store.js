@@ -451,7 +451,6 @@
 
   // ------------------------------------------------------------- checkout ---
   function currentFreightCost() {
-    if (state.deliveryType === 'pickup') return 0;
     if (state.freight.quoted) return state.freight.cost || 0;
     // Prévia local até o CEP ser informado; a API é a fonte de verdade.
     return Pricing.fallbackFreight(subtotal()).cost;
@@ -466,9 +465,7 @@
     if (totals.discount > 0) {
       html += '<div class="totals-line discount"><span>Desconto (' + esc(totals.couponCode) + ')</span><span>− ' + money(totals.discount) + '</span></div>';
     }
-    var freightLabel = state.deliveryType === 'pickup'
-      ? '<span class="free-tag">Retirada</span>'
-      : (totals.freight === 0 ? '<span class="free-tag">Grátis!</span>' : money(totals.freight));
+    var freightLabel = totals.freight === 0 ? '<span class="free-tag">Grátis!</span>' : money(totals.freight);
     html += '<div class="totals-line"><span>Frete</span><span>' + freightLabel + '</span></div>';
     html += '<div class="totals-line total"><span>Total</span><span>' + money(totals.total) + '</span></div>';
     return html;
@@ -485,22 +482,13 @@
     $('#co-totals').innerHTML = totalsLinesHtml(currentTotals());
   }
 
-  function setDeliveryType(type) {
-    state.deliveryType = type;
-    $$('#delivery-toggle button').forEach(function (btn) {
-      btn.classList.toggle('active', btn.dataset.delivery === type);
-    });
-    $('#address-block').hidden = type !== 'delivery';
-    renderCheckoutSummary();
-  }
-
   function prefillFromLastOrder() {
     var last = readJSON(LAST_ORDER_KEY, null);
     if (!last) return;
     if (last.fullName && !$('#f-name').value) $('#f-name').value = last.fullName;
     // O telefone é guardado só com dígitos; reaplica a máscara ao preencher.
     if (last.phone && !$('#f-phone').value) $('#f-phone').value = maskPhone(String(last.phone));
-    if (last.deliveryType === 'delivery' && last.address) {
+    if (last.address) {
       ['cep', 'street', 'number', 'complement', 'neighborhood', 'city', 'state'].forEach(function (field) {
         var input = $('#f-' + field);
         if (input && last.address[field] && !input.value) input.value = last.address[field];
@@ -511,7 +499,6 @@
   function openCheckout() {
     if (!state.cart.length) { toast('Seu carrinho está vazio'); return; }
     prefillFromLastOrder();
-    setDeliveryType(state.deliveryType);
     renderCheckoutSummary();
     openOverlay($('#checkout-sheet'));
   }
@@ -672,13 +659,12 @@
   }
 
   function buildPayload() {
-    var isDelivery = state.deliveryType === 'delivery';
     return {
       customer: readCustomer(),
       delivery: {
-        type: state.deliveryType,
-        address: isDelivery ? readAddress() : null,
-        freightCost: isDelivery ? currentFreightCost() : 0
+        type: 'delivery',
+        address: readAddress(),
+        freightCost: currentFreightCost()
       },
       items: state.cart.map(function (item) {
         return { slug: item.slug, name: item.name, price: item.price, qty: item.qty, note: item.note || '' };
@@ -793,14 +779,9 @@
         '</span><span>' + money(item.price * item.qty) + '</span></div>';
     }).join('');
 
-    var deliveryHtml;
-    if (payload.delivery.type === 'delivery') {
-      var a = payload.delivery.address;
-      deliveryHtml = esc(a.street + ', ' + a.number + (a.complement ? ' — ' + a.complement : '')) +
-        '<br>' + esc(a.neighborhood + ' · ' + a.city + '/' + a.state) + '<br>CEP ' + esc(a.cep);
-    } else {
-      deliveryHtml = 'Retirada no balcão da loja.';
-    }
+    var a = payload.delivery.address;
+    var deliveryHtml = esc(a.street + ', ' + a.number + (a.complement ? ' — ' + a.complement : '')) +
+      '<br>' + esc(a.neighborhood + ' · ' + a.city + '/' + a.state) + '<br>CEP ' + esc(a.cep);
 
     $('#cf-summary').innerHTML =
       '<h3>Itens</h3>' + itemsHtml +
@@ -856,11 +837,6 @@
 
     $('#co-close').addEventListener('click', function () { closeOverlay(sheet); });
     sheet.addEventListener('click', function (event) { if (event.target === sheet) closeOverlay(sheet); });
-
-    $('#delivery-toggle').addEventListener('click', function (event) {
-      var btn = event.target.closest('[data-delivery]');
-      if (btn) setDeliveryType(btn.dataset.delivery);
-    });
 
     $('#f-cpf').addEventListener('input', function () { this.value = maskCPF(this.value); });
     $('#f-phone').addEventListener('input', function () { this.value = maskPhone(this.value); });

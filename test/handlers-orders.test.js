@@ -20,7 +20,8 @@ function makeDeps(overrides = {}) {
 function validBody() {
   return {
     customer: { fullName: 'Maria Silva', birthDate: '1990-05-20', cpf: '111.222.333-44', phone: '11987654321', email: 'maria@example.com' },
-    delivery: { type: 'pickup', address: null, freightCost: 0 },
+    // A loja só faz envios — não existe mais opção de retirada no balcão.
+    delivery: { type: 'delivery', address: { street: 'Rua A', number: '10', complement: '', cep: '01000-000', neighborhood: 'Centro', city: 'São Paulo', state: 'SP' }, freightCost: 15 },
     items: [{ slug: 'porta-6', name: 'Porta 6', price: 57.1, qty: 1 }],
     couponCode: null,
     paymentMethod: 'pix'
@@ -34,7 +35,7 @@ test('POST creates an order and returns 201 with totals', async () => {
   await handler(req, res);
   assert.equal(res.statusCode, 201);
   assert.equal(res.body.id, 1);
-  assert.equal(res.body.total, 57.1);
+  assert.equal(res.body.total, 72.1);
 });
 
 test('POST with invalid payload returns 400 with error list', async () => {
