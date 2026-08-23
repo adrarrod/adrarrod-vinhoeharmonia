@@ -42,6 +42,33 @@ test('suggestPairings prefers same country or grape when available', () => {
   assert.ok(suggestions.some((w) => w.country === 'França' || w.grape === 'Blend'));
 });
 
+test('searchByName matches case-insensitively', () => {
+  const results = Catalog.searchByName('CORAGEM');
+  assert.ok(results.length >= 2);
+  assert.ok(results.every((w) => /coragem/i.test(w.name)));
+});
+
+test('searchByName matches ignoring accents, in both directions', () => {
+  // "torrontes" (sem acento) precisa achar "Bodega Torrontés" (com acento)
+  const withoutAccent = Catalog.searchByName('torrontes');
+  assert.ok(withoutAccent.some((w) => w.slug === 'bodega-torrontes'));
+
+  // "château" (com acento) precisa achar "Château Bel Enclos"
+  const withAccent = Catalog.searchByName('château');
+  assert.ok(withAccent.some((w) => w.slug === 'chateau-bel-enclos'));
+});
+
+test('searchByName matches a substring anywhere in the name, not just the start', () => {
+  const results = Catalog.searchByName('malbec');
+  assert.ok(results.some((w) => w.slug === 'cavic-malbec'));
+});
+
+test('searchByName returns an empty array for no matches or an empty/blank query', () => {
+  assert.deepEqual(Catalog.searchByName('xyz-nao-existe'), []);
+  assert.deepEqual(Catalog.searchByName(''), []);
+  assert.deepEqual(Catalog.searchByName('   '), []);
+});
+
 test('CATEGORIES lists each distinct category once, in order of first appearance', () => {
   const expected = [];
   for (const wine of Catalog.MENU) {

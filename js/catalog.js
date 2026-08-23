@@ -136,6 +136,21 @@
     return MENU.find((w) => w.slug === slug);
   }
 
+  // Remove acentos para a busca não depender de o cliente digitar exatamente
+  // (ex.: "torrontes" precisa achar "Torrontés").
+  function normalizeText(value) {
+    return String(value == null ? '' : value)
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase();
+  }
+
+  function searchByName(query) {
+    const q = normalizeText(query).trim();
+    if (!q) return [];
+    return MENU.filter((w) => normalizeText(w.name).indexOf(q) !== -1);
+  }
+
   function suggestPairings(slug, count) {
     const target = findBySlug(slug);
     if (!target) return [];
@@ -150,5 +165,5 @@
     return scored.slice(0, count).map((s) => s.wine);
   }
 
-  return { MENU, CATEGORIES, findBySlug, suggestPairings };
+  return { MENU, CATEGORIES, findBySlug, suggestPairings, searchByName };
 });

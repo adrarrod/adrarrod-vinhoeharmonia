@@ -94,6 +94,14 @@
         </div>
       </div>
     </div>
+    <div class="search-bar-wrap">
+      <div class="wrap">
+        <div class="search-bar">
+          <input type="search" id="wine-search" class="search-input" placeholder="Buscar vinho pelo nome…" aria-label="Buscar vinho pelo nome" autocomplete="off">
+          <button type="button" class="search-clear" id="search-clear" aria-label="Limpar busca" hidden>&times;</button>
+        </div>
+      </div>
+    </div>
     <nav class="tabs" id="tabs" aria-label="Categorias"></nav>
   </header>
 
@@ -107,6 +115,17 @@
   <!-- ================================================================ main -->
   <main class="wrap">
     <div id="catalog"><!-- seções por categoria renderizadas por js/store.js --></div>
+
+    <div class="search-results" id="search-results" hidden>
+      <div class="category-head">
+        <h2>Resultados da busca</h2>
+        <span class="category-count" id="search-results-count"></span>
+      </div>
+      <p class="search-empty" id="search-empty" hidden>
+        Nenhum vinho encontrado. <button type="button" class="btn-link" id="search-clear-inline">Limpar busca</button>
+      </p>
+      <div class="grid" id="search-results-grid"></div>
+    </div>
 
     <section class="about" id="sobre">
       <h2>Sobre a Vinho &amp; Harmonia</h2>

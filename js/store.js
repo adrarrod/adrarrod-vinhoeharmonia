@@ -246,29 +246,84 @@
       if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
-    catalog.addEventListener('click', function (event) {
-      var opener = event.target.closest('[data-open]');
-      if (opener) { openProductModal(opener.dataset.open); return; }
-
-      var stepBtn = event.target.closest('[data-step]');
-      if (stepBtn) {
-        var box = stepBtn.closest('[data-card-qty]');
-        var label = $('[data-qty]', box);
-        var next = Math.max(1, Math.min(99, (parseInt(label.textContent, 10) || 1) + parseInt(stepBtn.dataset.step, 10)));
-        label.textContent = String(next);
-        return;
-      }
-
-      var addBtn = event.target.closest('[data-add]');
-      if (addBtn) {
-        var card = addBtn.closest('.card');
-        var qtyLabel = $('[data-qty]', card);
-        addToCart(addBtn.dataset.add, parseInt(qtyLabel.textContent, 10) || 1, '');
-        qtyLabel.textContent = '1';
-      }
-    });
+    catalog.addEventListener('click', handleCatalogClick);
 
     initScrollSpy();
+  }
+
+  // Compartilhado entre #catalog e #search-results-grid: abrir modal, stepper
+  // de quantidade e adicionar ao carrinho funcionam igual nos dois.
+  function handleCatalogClick(event) {
+    var opener = event.target.closest('[data-open]');
+    if (opener) { openProductModal(opener.dataset.open); return; }
+
+    var stepBtn = event.target.closest('[data-step]');
+    if (stepBtn) {
+      var box = stepBtn.closest('[data-card-qty]');
+      var label = $('[data-qty]', box);
+      var next = Math.max(1, Math.min(99, (parseInt(label.textContent, 10) || 1) + parseInt(stepBtn.dataset.step, 10)));
+      label.textContent = String(next);
+      return;
+    }
+
+    var addBtn = event.target.closest('[data-add]');
+    if (addBtn) {
+      var card = addBtn.closest('.card');
+      var qtyLabel = $('[data-qty]', card);
+      addToCart(addBtn.dataset.add, parseInt(qtyLabel.textContent, 10) || 1, '');
+      qtyLabel.textContent = '1';
+    }
+  }
+
+  // ------------------------------------------------------------- pesquisa ---
+  function renderSearchResults(query) {
+    var matches = Catalog.searchByName(query);
+    var grid = $('#search-results-grid');
+    var count = $('#search-results-count');
+    var empty = $('#search-empty');
+
+    $('#tabs').hidden = true;
+    $('#catalog').hidden = true;
+    $('#search-results').hidden = false;
+
+    empty.hidden = matches.length > 0;
+    count.textContent = matches.length ? matches.length + ' rótulo(s) encontrado(s)' : '';
+    grid.innerHTML = matches.map(cardTemplate).join('');
+  }
+
+  function clearSearch() {
+    $('#wine-search').value = '';
+    $('#search-clear').hidden = true;
+    $('#tabs').hidden = false;
+    $('#catalog').hidden = false;
+    $('#search-results').hidden = true;
+  }
+
+  function initSearch() {
+    var input = $('#wine-search');
+    var clearBtn = $('#search-clear');
+    var results = $('#search-results');
+
+    input.addEventListener('input', function () {
+      var query = input.value.trim();
+      clearBtn.hidden = query.length === 0;
+      if (!query) { clearSearch(); return; }
+      renderSearchResults(query);
+    });
+
+    clearBtn.addEventListener('click', function () {
+      clearSearch();
+      input.focus();
+    });
+
+    results.addEventListener('click', function (event) {
+      if (event.target.closest('#search-clear-inline')) {
+        clearSearch();
+        input.focus();
+        return;
+      }
+      handleCatalogClick(event);
+    });
   }
 
   function initScrollSpy() {
@@ -1048,6 +1103,7 @@
     }
     $('#pix-key').textContent = PIX_KEY;
     renderCatalog();
+    initSearch();
     initProductModal();
     initCart();
     initCheckout();
