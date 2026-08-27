@@ -125,6 +125,21 @@
     }).join('');
   }
 
+  function formatAddress(order) {
+    var line1 = order.address_street || '';
+    if (order.address_number) line1 += ', ' + order.address_number;
+    if (order.address_complement) line1 += ' — ' + order.address_complement;
+
+    var parts = [];
+    if (line1) parts.push(line1);
+    if (order.address_neighborhood) parts.push(order.address_neighborhood);
+    var cityState = [order.address_city, order.address_state].filter(Boolean).join('/');
+    if (cityState) parts.push(cityState);
+    if (order.address_cep) parts.push('CEP ' + order.address_cep);
+
+    return parts.length ? parts.join(' · ') : '—';
+  }
+
   function renderOrderCard(order) {
     const deliveryLabel = DELIVERY_LABELS[order.delivery_type] || order.delivery_type || '—';
     const paymentLabel = PAYMENT_LABELS[order.payment_method] || order.payment_method || '—';
@@ -141,6 +156,7 @@
           '<div><span class="order-meta-label">Telefone</span><span>' + escapeHtml(order.phone) + '</span></div>' +
           '<div><span class="order-meta-label">Entrega</span><span>' + escapeHtml(deliveryLabel) + '</span></div>' +
           '<div><span class="order-meta-label">Pagamento</span><span>' + escapeHtml(paymentLabel) + '</span></div>' +
+          '<div class="order-address-full"><span class="order-meta-label">Endereço de entrega</span><span>' + escapeHtml(formatAddress(order)) + '</span></div>' +
         '</div>' +
         '<ul class="order-items">' + renderItems(order.items) + '</ul>' +
         '<div class="order-totals">' +

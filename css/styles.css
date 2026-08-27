@@ -806,6 +806,7 @@ main { padding-bottom: 120px; }
 }
 .order-meta-grid div { display: flex; flex-direction: column; gap: 2px; font-size: .86rem; }
 .order-meta-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .7px; color: var(--silver); font-weight: 600; }
+.order-address-full { grid-column: 1 / -1; }
 
 .order-items { margin: 0 0 10px; padding-left: 18px; font-size: .86rem; color: var(--text); }
 .order-item-note { color: var(--muted); font-size: .8rem; }
