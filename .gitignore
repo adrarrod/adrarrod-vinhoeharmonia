@@ -4,6 +4,7 @@ node_modules/
 .env
 .env.local
 .vercel/
+__pycache__/
 
 # Local notes and credentials the user drops into the project root —
 # never project deliverables, and Mercado.txt / Melhor_Envio.txt contain

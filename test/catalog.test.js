@@ -6,22 +6,38 @@ const Catalog = require('../js/catalog.js');
 const KNOWN_CATEGORIES = ['Tinto', 'Branco', 'Rosé', 'Espumante', 'Sobremesa'];
 
 test('MENU has the full catalog, every wine in a known category', () => {
-  assert.equal(Catalog.MENU.length, 121);
+  assert.equal(Catalog.MENU.length, 115);
   for (const wine of Catalog.MENU) {
     assert.ok(KNOWN_CATEGORIES.includes(wine.category), `unexpected category ${wine.category} on ${wine.name}`);
   }
 });
 
-test('every wine has required fields and a unique slug', () => {
+test('every wine has required fields, a unique slug, and exactly 3 pairings', () => {
   const seen = new Set();
   for (const wine of Catalog.MENU) {
     for (const field of ['slug', 'name', 'category', 'price', 'country', 'grape', 'image', 'description']) {
       assert.ok(wine[field], `missing ${field} on ${wine.name}`);
     }
     assert.ok(typeof wine.price === 'number' && wine.price > 0);
+    // abv não é confirmado para todo vinho na planilha da loja: null é um
+    // valor válido, só não pode ser um número fora da faixa plausível.
+    assert.ok(wine.abv === null || (typeof wine.abv === 'number' && wine.abv > 0 && wine.abv < 25), `implausible abv on ${wine.name}`);
+    assert.ok(Array.isArray(wine.pairings) && wine.pairings.length === 3, `expected 3 pairings on ${wine.name}`);
     assert.ok(!seen.has(wine.slug), `duplicate slug ${wine.slug}`);
     seen.add(wine.slug);
   }
+});
+
+test('pairingIcon returns an icon for every pairing used in the catalog, and a fallback for unknown categories', () => {
+  const usedCategories = new Set();
+  for (const wine of Catalog.MENU) {
+    for (const p of wine.pairings) usedCategories.add(p);
+  }
+  for (const category of usedCategories) {
+    const icon = Catalog.pairingIcon(category);
+    assert.ok(icon && icon.length > 0, `no icon for ${category}`);
+  }
+  assert.equal(Catalog.pairingIcon('categoria-que-nao-existe'), Catalog.pairingIcon('outra-categoria-inexistente'));
 });
 
 test('findBySlug returns the matching wine or undefined', () => {
@@ -43,9 +59,9 @@ test('suggestPairings prefers same country or grape when available', () => {
 });
 
 test('searchByName matches case-insensitively', () => {
-  const results = Catalog.searchByName('CORAGEM');
+  const results = Catalog.searchByName('VEZZANI');
   assert.ok(results.length >= 2);
-  assert.ok(results.every((w) => /coragem/i.test(w.name)));
+  assert.ok(results.every((w) => /vezzani/i.test(w.name)));
 });
 
 test('searchByName matches ignoring accents, in both directions', () => {

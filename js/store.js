@@ -22,6 +22,11 @@
   var BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
   function money(value) { return BRL.format(Number(value) || 0); }
 
+  function formatAbv(abv) {
+    var str = Number.isInteger(abv) ? String(abv) : abv.toFixed(1).replace('.', ',');
+    return str + '% vol.';
+  }
+
   var FIELD_LABELS = {
     fullName: 'Nome completo',
     birthDate: 'Data de nascimento (é preciso ter 18 anos ou mais)',
@@ -197,9 +202,10 @@
   function cardTemplate(wine) {
     return '' +
       '<article class="card" data-slug="' + esc(wine.slug) + '">' +
-        '<button class="card-photo" type="button" data-open="' + esc(wine.slug) + '" aria-label="Ver detalhes de ' + esc(wine.name) + '">' +
+        '<div class="card-photo">' +
           '<img src="' + esc(wine.image) + '" alt="Garrafa de ' + esc(wine.name) + '" loading="lazy" width="400" height="400">' +
-        '</button>' +
+          '<button class="card-view" type="button" data-open="' + esc(wine.slug) + '" aria-label="Ver detalhes de ' + esc(wine.name) + '">👁</button>' +
+        '</div>' +
         '<div class="card-body">' +
           '<button class="card-name" type="button" data-open="' + esc(wine.slug) + '">' + esc(wine.name) + '</button>' +
           '<p class="card-meta">' + esc(wine.country) + ' &middot; ' + esc(wine.grape) + '</p>' +
@@ -370,6 +376,23 @@
     $('#pm-desc').textContent = wine.description;
     $('#pm-price').textContent = money(wine.price);
     $('#pm-qty').textContent = '1';
+
+    var abvEl = $('#pm-abv');
+    if (typeof wine.abv === 'number') {
+      abvEl.hidden = false;
+      abvEl.textContent = 'Teor alcoólico: ' + formatAbv(wine.abv);
+    } else {
+      abvEl.hidden = true;
+    }
+
+    var foodPairings = Array.isArray(wine.pairings) ? wine.pairings : [];
+    $('#pm-food-pairings').hidden = foodPairings.length === 0;
+    $('#pm-food-pairing-icons').innerHTML = foodPairings.map(function (p) {
+      return '<span class="food-pairing-icon" title="' + esc(p) + '">' +
+        '<span aria-hidden="true">' + Catalog.pairingIcon(p) + '</span>' +
+        '<span class="food-pairing-label">' + esc(p) + '</span>' +
+      '</span>';
+    }).join('');
 
     var existing = findCartItem(slug);
     $('#pm-note').value = existing && existing.note ? existing.note : '';
