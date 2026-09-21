@@ -125,6 +125,25 @@ maiúsculas de minúsculas. `img/Foto.jpg` e `img/foto.jpg` são arquivos difere
 (no Windows, não) — o valor de `image` no catálogo precisa bater exatamente com o nome
 do arquivo. O `npm test` verifica isso.
 
+## Mini Blog (um tema novo por semana)
+
+A página `blog.html` lê os posts de `js/blog.js`. Para publicar um tema novo:
+
+1. Coloque a ilustração (de preferência 800x500, `.svg`, `.jpg` ou `.png`) na
+   pasta `blog-img/`.
+2. Em `js/blog.js`, acrescente um objeto **no início** de `POSTS` (o primeiro
+   da lista aparece primeiro na página) com `slug`, `tag`, `title`, `summary`
+   (texto curto, até 600 caracteres), `image` e `imageAlt` (descrição da
+   imagem, para acessibilidade).
+3. Rode `npm test` — ele confere se todo post tem imagem em `blog-img/` e se
+   não sobrou arquivo sem uso na pasta.
+
+O acesso ao blog exige a confirmação de idade da home: quem abre `blog.html`
+direto, sem ter confirmado, é levado para a home primeiro. `blog.html` e
+`js/blog.js` não ficam no cache do service worker, então não precisam de
+troca de versão em `sw.js`; já o botão "Mini Blog" mora no `index.html`, que
+precisa.
+
 ## Cupons
 
 Editados em `COUPONS` dentro de `js/pricing.js` (hoje só `PRIMEIRA10` = 10%).
