@@ -1125,6 +1125,8 @@
       return;
     }
     $('#pix-key').textContent = PIX_KEY;
+    // O valor do aviso do topo vem da mesma constante usada no cálculo do pedido.
+    $('#promo-threshold').textContent = money(Pricing.FREE_SHIPPING_THRESHOLD);
     renderCatalog();
     initSearch();
     initProductModal();

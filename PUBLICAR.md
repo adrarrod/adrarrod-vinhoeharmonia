@@ -47,7 +47,7 @@ Em Project Settings → Environment Variables, adicione (veja `.env.example`):
   4. Salve e copie a **chave secreta** exibida — esse é o valor de `MP_WEBHOOK_SECRET`.
 - `MELHOR_ENVIO_CLIENT_ID`, `MELHOR_ENVIO_CLIENT_SECRET`, `MELHOR_ENVIO_REDIRECT_URI`
   e `MELHOR_ENVIO_CEP_ORIGEM` — integração com o Melhor Envio. Sem elas (ou
-  antes de conectar a conta), o frete usa a regra local (grátis acima de
+  antes de conectar a conta), o frete usa a regra local (grátis a partir de
   R$150, R$15 fixo abaixo). Para configurar:
   1. Crie um app em **melhorenvio.com.br** → **Gerenciar** → **Meus Apps** →
      **Adicionar aplicação**. Anote o **Client ID** e o **Client Secret**.

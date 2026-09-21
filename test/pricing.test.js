@@ -73,3 +73,22 @@ test('computeTotals never lets total go negative', () => {
   const totals = Pricing.computeTotals(items, 'PRIMEIRA10', 0);
   assert.ok(totals.total >= 0);
 });
+
+// Frete grátis "a partir de R$ 150": o limite é inclusivo e vale para o
+// subtotal ANTES do cupom (é o que o aviso da home promete ao cliente).
+test('computeTotals charges freight at R$149.99 and waives it at exactly R$150.00', () => {
+  const below = Pricing.computeTotals([{ price: 149.99, qty: 1 }], null, 22.5);
+  assert.equal(below.freight, 22.5);
+  assert.equal(below.total, 172.49);
+
+  const at = Pricing.computeTotals([{ price: 150, qty: 1 }], null, 22.5);
+  assert.equal(at.freight, 0);
+  assert.equal(at.total, 150);
+});
+
+test('computeTotals keeps free shipping when a coupon drops the payable amount below R$150', () => {
+  const totals = Pricing.computeTotals([{ price: 150, qty: 1 }], 'PRIMEIRA10', 22.5);
+  assert.equal(totals.freight, 0);
+  assert.equal(totals.discount, 15);
+  assert.equal(totals.total, 135);
+});

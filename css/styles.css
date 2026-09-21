@@ -144,6 +144,17 @@ button { cursor: pointer; }
 .brand-text h1 .amp { color: var(--gold); }
 .brand-slogan { margin: 2px 0 0; font-size: .78rem; color: var(--silver); letter-spacing: .3px; }
 
+/* aviso de frete grátis no topo */
+.promo-bar {
+  background: linear-gradient(90deg, #4a1226, var(--accent), #4a1226);
+  color: var(--text);
+  text-align: center;
+  font-size: .82rem;
+  padding: 7px 16px;
+  border-bottom: 1px solid rgba(196, 154, 61, .35);
+}
+.promo-bar strong { color: var(--gold-soft); }
+
 /* barra de pesquisa por nome */
 .search-bar-wrap { padding-bottom: 10px; }
 .search-bar { position: relative; }
