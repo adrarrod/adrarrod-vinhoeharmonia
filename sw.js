@@ -1,7 +1,7 @@
 // Incrementar a cada mudança em qualquer arquivo do SHELL_ASSETS: o fetch é
 // cache-first sem revalidação, então sem um nome novo quem já instalou o
 // service worker continua rodando a versão antiga indefinidamente.
-const CACHE_NAME = 'vinho-harmonia-shell-v7';
+const CACHE_NAME = 'vinho-harmonia-shell-v8';
 const SHELL_ASSETS = [
   '/', '/index.html', '/css/styles.css',
   '/js/catalog.js', '/js/pricing.js', '/js/store.js',
