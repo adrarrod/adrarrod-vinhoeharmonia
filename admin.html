@@ -51,6 +51,14 @@
       <a class="btn btn-gold" id="melhor-envio-connect-link" href="/api/melhor-envio-connect" hidden>Conectar Melhor Envio</a>
     </section>
 
+    <!-- ============================================================== estoque -->
+    <section class="fieldset-block admin-stock" id="admin-stock" hidden>
+      <div class="block-title">Estoque</div>
+      <p class="orders-status" id="stock-status" hidden></p>
+      <input type="search" id="stock-filter" class="search-input stock-filter" placeholder="Filtrar vinho pelo nome…" aria-label="Filtrar vinho pelo nome" autocomplete="off">
+      <div class="stock-list" id="stock-list"></div>
+    </section>
+
     <!-- ==================================================== lista de pedidos -->
     <section class="admin-orders" id="admin-orders" hidden>
       <div class="admin-orders-head">
@@ -64,6 +72,7 @@
 
   </main>
 
+  <script src="js/catalog.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>

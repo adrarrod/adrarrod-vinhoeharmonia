@@ -97,7 +97,8 @@
     modalSlug: null,
     pendingDeepLink: null,
     deferredInstallPrompt: null,
-    pwaDismissed: false
+    pwaDismissed: false,
+    stock: null
   };
 
   function sanitizeCart(raw) {
@@ -125,11 +126,32 @@
     return state.cart.filter(function (i) { return i.slug === slug; })[0];
   }
 
+  // ---------------------------------------------------------------- estoque --
+  // state.stock é o estoque ao vivo de /api/stock (slug -> quantidade). null =
+  // ainda não carregou (ou a chamada falhou): sem limite local, mas o servidor
+  // continua barrando o que não existe — quem decide é sempre ele.
+  function stockOf(slug) {
+    return state.stock && typeof state.stock[slug] === 'number' ? state.stock[slug] : null;
+  }
+
+  function maxQty(slug) {
+    var s = stockOf(slug);
+    return s === null ? 99 : Math.min(99, s);
+  }
+
+  function stockMessage(name, available) {
+    if (available <= 0) return name + ' está esgotado';
+    return 'Só temos ' + available + (available === 1 ? ' unidade' : ' unidades') + ' de ' + name;
+  }
+
   function addToCart(slug, qty, note) {
     var wine = Catalog.findBySlug(slug);
     if (!wine) return;
-    var amount = Math.max(1, parseInt(qty, 10) || 1);
+    var requested = Math.max(1, parseInt(qty, 10) || 1);
     var existing = findCartItem(slug);
+    var room = maxQty(slug) - (existing ? existing.qty : 0);
+    if (room <= 0) { toast(stockMessage(wine.name, maxQty(slug))); return; }
+    var amount = Math.min(requested, room);
     if (existing) {
       existing.qty = Math.min(99, existing.qty + amount);
       if (note) existing.note = note;
@@ -137,17 +159,19 @@
       state.cart.push({ slug: wine.slug, name: wine.name, price: wine.price, qty: amount, note: note || '' });
     }
     afterCartChange();
-    toast(wine.name + ' adicionado');
+    toast(amount < requested ? stockMessage(wine.name, maxQty(slug)) : wine.name + ' adicionado');
   }
 
   function setCartQty(slug, qty) {
     var item = findCartItem(slug);
     if (!item) return;
     var next = parseInt(qty, 10) || 0;
+    var limit = maxQty(slug);
+    if (next > limit) { toast(stockMessage(item.name, limit)); next = limit; }
     if (next <= 0) {
       state.cart = state.cart.filter(function (i) { return i.slug !== slug; });
     } else {
-      item.qty = Math.min(99, next);
+      item.qty = next;
     }
     afterCartChange();
   }
@@ -210,6 +234,7 @@
           '<button class="card-name" type="button" data-open="' + esc(wine.slug) + '">' + esc(wine.name) + '</button>' +
           '<p class="card-meta">' + esc(wine.country) + ' &middot; ' + esc(wine.grape) + '</p>' +
           '<p class="card-price">' + money(wine.price) + '</p>' +
+          '<p class="soldout-label">Esgotado</p>' +
           '<div class="card-actions">' +
             '<div class="stepper" data-card-qty>' +
               '<button type="button" data-step="-1" aria-label="Diminuir quantidade">&minus;</button>' +
@@ -267,8 +292,11 @@
     if (stepBtn) {
       var box = stepBtn.closest('[data-card-qty]');
       var label = $('[data-qty]', box);
-      var next = Math.max(1, Math.min(99, (parseInt(label.textContent, 10) || 1) + parseInt(stepBtn.dataset.step, 10)));
-      label.textContent = String(next);
+      var cardSlug = stepBtn.closest('.card').dataset.slug;
+      var limit = Math.max(1, maxQty(cardSlug));
+      var wanted = (parseInt(label.textContent, 10) || 1) + parseInt(stepBtn.dataset.step, 10);
+      if (wanted > limit) toast(stockMessage(Catalog.findBySlug(cardSlug).name, limit));
+      label.textContent = String(Math.max(1, Math.min(limit, wanted)));
       return;
     }
 
@@ -295,6 +323,7 @@
     empty.hidden = matches.length > 0;
     count.textContent = matches.length ? matches.length + ' rótulo(s) encontrado(s)' : '';
     grid.innerHTML = matches.map(cardTemplate).join('');
+    applyStockToCards();
   }
 
   function clearSearch() {
@@ -394,10 +423,17 @@
       '</span>';
     }).join('');
 
+    var soldOut = stockOf(slug) === 0;
+    $('#pm-soldout').hidden = !soldOut;
+    $('#pm-note-field').hidden = soldOut;
+    $('#pm-actions').hidden = soldOut;
+
     var existing = findCartItem(slug);
     $('#pm-note').value = existing && existing.note ? existing.note : '';
 
-    var pairings = Catalog.suggestPairings(slug, 2).filter(function (w) { return w.slug !== slug; });
+    var pairings = Catalog.suggestPairings(slug, 3)
+      .filter(function (w) { return w.slug !== slug && stockOf(w.slug) !== 0; })
+      .slice(0, 2);
     $('#pm-pairings').hidden = pairings.length === 0;
     $('#pm-pairing-list').innerHTML = pairings.map(pairingTemplate).join('');
 
@@ -416,8 +452,10 @@
       var btn = event.target.closest('[data-step]');
       if (!btn) return;
       var label = $('#pm-qty');
-      var next = Math.max(1, Math.min(99, (parseInt(label.textContent, 10) || 1) + parseInt(btn.dataset.step, 10)));
-      label.textContent = String(next);
+      var limit = Math.max(1, maxQty(state.modalSlug));
+      var wanted = (parseInt(label.textContent, 10) || 1) + parseInt(btn.dataset.step, 10);
+      if (wanted > limit) toast(stockMessage(Catalog.findBySlug(state.modalSlug).name, limit));
+      label.textContent = String(Math.max(1, Math.min(limit, wanted)));
     });
 
     $('#pm-add').addEventListener('click', function () {
@@ -430,6 +468,59 @@
       if (!btn) return;
       addToCart(btn.dataset.quickAdd, 1, '');
     });
+  }
+
+  // ----------------------------------------------------- estoque na vitrine ---
+  function applyStockToCards() {
+    $$('.card[data-slug]').forEach(function (card) {
+      var soldOut = stockOf(card.dataset.slug) === 0;
+      card.classList.toggle('is-soldout', soldOut);
+      $$('[data-add], [data-step]', card).forEach(function (btn) { btn.disabled = soldOut; });
+    });
+  }
+
+  // Aplica o estoque atual: marca esgotados na vitrine e ajusta o carrinho
+  // (tira o que esgotou, reduz o que passou do estoque) avisando o cliente.
+  function refreshStockUI() {
+    applyStockToCards();
+    var notes = [];
+    state.cart = state.cart.filter(function (item) {
+      var limit = maxQty(item.slug);
+      if (limit <= 0) { notes.push(stockMessage(item.name, 0)); return false; }
+      if (item.qty > limit) { notes.push(stockMessage(item.name, limit)); item.qty = limit; }
+      return true;
+    });
+    if (notes.length) {
+      afterCartChange();
+      toast('Ajustamos seu carrinho: ' + notes[0] + (notes.length > 1 ? ' (e mais ' + (notes.length - 1) + ')' : ''));
+    }
+  }
+
+  function loadStock() {
+    return fetch('/api/stock', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('http ' + res.status)); })
+      .then(function (map) { state.stock = map; refreshStockUI(); })
+      .catch(function () { /* sem estoque local: o servidor ainda barra o pedido */ });
+  }
+
+  // O servidor recusou o pedido por falta de estoque (409): mostra o que mudou,
+  // ajusta o carrinho e deixa o cliente revisar antes de enviar de novo.
+  function handleOutOfStock(items) {
+    if (!state.stock) state.stock = {};
+    items.forEach(function (i) { state.stock[i.slug] = i.available; });
+    var lines = items.map(function (i) {
+      return i.available > 0 ? i.name + ' (restam ' + i.available + ')' : i.name + ' (esgotado)';
+    });
+    showFormErrors([], 'Ops! Alguém levou antes de você: ' + lines.join('; ') + '. Ajustamos seu carrinho — confira e envie de novo.');
+    refreshStockUI();
+    if (!state.cart.length) closeOverlay($('#checkout-sheet'));
+    loadStock();
+  }
+
+  function initStock() {
+    loadStock();
+    // Voltou para a aba depois de um tempo: o estoque pode ter mudado.
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) loadStock(); });
   }
 
   // ------------------------------------------------------- carrinho / fab ---
@@ -465,7 +556,7 @@
     var top = state.cart.slice().sort(function (a, b) { return (b.price * b.qty) - (a.price * a.qty); })[0];
     var inCart = state.cart.map(function (i) { return i.slug; });
     return Catalog.suggestPairings(top.slug, 6)
-      .filter(function (w) { return inCart.indexOf(w.slug) === -1; })
+      .filter(function (w) { return inCart.indexOf(w.slug) === -1 && stockOf(w.slug) !== 0; })
       .slice(0, 2);
   }
 
@@ -778,6 +869,8 @@
         if (!result.ok) {
           if (result.status === 400 && Array.isArray(result.data.errors)) {
             showFormErrors(result.data.errors);
+          } else if (result.status === 409 && result.data.error === 'out_of_stock') {
+            handleOutOfStock(result.data.items || []);
           } else {
             showFormErrors([], 'Não foi possível registrar seu pedido agora. Tente novamente em instantes.');
           }
@@ -983,17 +1076,13 @@
       var last = readJSON(LAST_ORDER_KEY, null);
       if (!last || !Array.isArray(last.cart)) return;
       var added = 0;
+      // Passa por addToCart para respeitar o estoque de cada vinho.
       sanitizeCart(last.cart).forEach(function (item) {
-        var existing = findCartItem(item.slug);
-        if (existing) {
-          existing.qty = Math.min(99, existing.qty + item.qty);
-        } else {
-          state.cart.push({ slug: item.slug, name: item.name, price: item.price, qty: item.qty, note: item.note || '' });
-        }
-        added += item.qty;
+        var before = cartCount();
+        addToCart(item.slug, item.qty, item.note || '');
+        added += cartCount() - before;
       });
-      if (!added) { toast('Nada para repetir'); return; }
-      afterCartChange();
+      if (!added) { toast('Nada para repetir (sem estoque)'); return; }
       toast('Último pedido adicionado ao carrinho');
       renderCart();
       openOverlay($('#cart-drawer'));
@@ -1142,6 +1231,7 @@
     initMercadoPagoReturn();
     renderFab();
     renderCart();
+    initStock();
 
     document.addEventListener('keydown', function (event) {
       if (event.key !== 'Escape') return;

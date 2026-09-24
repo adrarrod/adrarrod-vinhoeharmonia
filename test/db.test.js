@@ -82,3 +82,62 @@ test('saveMelhorEnvioTokens ensures its own schema then upserts the single row',
   assert.match(execute.calls[1].text, /ON CONFLICT \(id\) DO UPDATE/);
   assert.deepEqual(execute.calls[1].params, ['AT', 'RT', '2026-09-01T00:00:00.000Z']);
 });
+
+// --- estoque ---
+
+test('ensureStockSchema creates the table, then seeds only slugs that are still missing', async () => {
+  const execute = fakeExecute([{ rows: [] }, { rows: [] }]);
+  await db.ensureStockSchema(execute, [{ slug: 'a', quantity: 1 }, { slug: 'b', quantity: 3 }]);
+  assert.match(execute.calls[0].text, /CREATE TABLE IF NOT EXISTS stock/);
+  assert.match(execute.calls[0].text, /CHECK \(quantity >= 0\)/);
+  assert.match(execute.calls[1].text, /INSERT INTO stock \(slug, quantity\) VALUES \(\$1, \$2\), \(\$3, \$4\)/);
+  assert.match(execute.calls[1].text, /ON CONFLICT \(slug\) DO NOTHING/);
+  assert.deepEqual(execute.calls[1].params, ['a', 1, 'b', 3]);
+});
+
+test('ensureStockSchema skips the seed insert when there is nothing to seed', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.ensureStockSchema(execute, []);
+  assert.equal(execute.calls.length, 1);
+});
+
+test('getStock returns a slug -> quantity map', async () => {
+  const execute = fakeExecute([{ rows: [{ slug: 'a', quantity: 2 }, { slug: 'b', quantity: 0 }] }]);
+  assert.deepEqual(await db.getStock(execute), { a: 2, b: 0 });
+  assert.match(execute.calls[0].text, /SELECT slug, quantity FROM stock/);
+});
+
+test('reserveStock decrements atomically and only when enough stock is left', async () => {
+  const ok = fakeExecute([{ rows: [{ quantity: 0 }] }]);
+  assert.equal(await db.reserveStock(ok, 'a', 1), true);
+  assert.match(ok.calls[0].text, /UPDATE stock SET quantity = quantity - \$2 WHERE slug = \$1 AND quantity >= \$2/);
+  assert.deepEqual(ok.calls[0].params, ['a', 1]);
+
+  const notEnough = fakeExecute([{ rows: [] }]);
+  assert.equal(await db.reserveStock(notEnough, 'a', 5), false);
+});
+
+test('releaseStock adds the quantity back', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.releaseStock(execute, 'a', 2);
+  assert.match(execute.calls[0].text, /UPDATE stock SET quantity = quantity \+ \$2 WHERE slug = \$1/);
+  assert.deepEqual(execute.calls[0].params, ['a', 2]);
+});
+
+test('setStock upserts an absolute quantity', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.setStock(execute, 'a', 7);
+  assert.match(execute.calls[0].text, /INSERT INTO stock \(slug, quantity\) VALUES \(\$1, \$2\) ON CONFLICT \(slug\) DO UPDATE SET quantity = \$2/);
+  assert.deepEqual(execute.calls[0].params, ['a', 7]);
+});
+
+test('cancelOrder marks the order cancelled once and returns its items; null if already cancelled or unknown', async () => {
+  const items = [{ slug: 'a', qty: 2 }];
+  const first = fakeExecute([{ rows: [{ items }] }]);
+  assert.deepEqual(await db.cancelOrder(first, 4), items);
+  assert.match(first.calls[0].text, /UPDATE orders SET status = 'cancelado' WHERE id = \$1 AND status <> 'cancelado' RETURNING items/);
+  assert.deepEqual(first.calls[0].params, [4]);
+
+  const again = fakeExecute([{ rows: [] }]);
+  assert.equal(await db.cancelOrder(again, 4), null);
+});

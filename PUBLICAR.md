@@ -106,7 +106,7 @@ público** (e para o Google) até serem trocados. Abra o arquivo e ajuste:
 ## Trocar o catálogo (produtos, preços, fotos)
 
 O catálogo é o array `MENU` no topo de `js/catalog.js`. Cada vinho é um objeto
-`{ slug, name, category, price, country, grape, image, description }`. Para
+`{ slug, name, category, price, country, grape, image, description, abv, pairings, initialStock }`. Para
 adicionar categorias novas (Branco, Rosé, Espumante), basta usar esses nomes no
 campo `category` de novos itens — a navegação por abas já lê `Catalog.CATEGORIES`
 automaticamente.
@@ -124,6 +124,30 @@ Uma observação sobre nomes de arquivo: a Vercel roda em Linux, que diferencia
 maiúsculas de minúsculas. `img/Foto.jpg` e `img/foto.jpg` são arquivos diferentes lá
 (no Windows, não) — o valor de `image` no catálogo precisa bater exatamente com o nome
 do arquivo. O `npm test` verifica isso.
+
+## Estoque
+
+O cliente nunca consegue comprar mais garrafas do que existem. Como funciona:
+
+- **Onde fica o estoque:** no banco (tabela `stock`). O campo `initialStock` de
+  cada vinho em `js/catalog.js` (vindo da coluna *Estoque* da planilha) é só a
+  **semente**: na primeira vez que o site roda, cada vinho recebe esse número.
+  Depois disso o banco é a fonte de verdade — mudar `initialStock` no
+  `catalog.js` **não** altera o estoque de um vinho que já existe. Vinho novo
+  no catálogo é semeado automaticamente.
+- **Baixa:** no momento em que o cliente envia o pedido, de forma atômica (dois
+  clientes pedindo a última garrafa ao mesmo tempo: só um leva; o outro vê "Ops!
+  Alguém levou antes de você" e o carrinho é ajustado). Se o pedido falhar ao
+  ser gravado, as garrafas voltam sozinhas.
+- **Vitrine:** vinho com estoque 0 aparece como "Esgotado", sem botão de compra;
+  o carrinho respeita o limite de cada vinho.
+- **Ajustar / repor:** em `/admin.html`, seção **Estoque** (digite a quantidade e
+  clique em *Salvar*). É por aí que você atualiza o estoque, não pela planilha.
+- **Pedido cancelado:** no card do pedido, botão **Cancelar pedido** — marca como
+  "cancelado" e devolve as garrafas ao estoque (só na primeira vez).
+
+Atenção: pedido em PIX que o cliente não pagar continua segurando as garrafas até
+você cancelá-lo no painel; o mesmo vale para pedido com cartão recusado.
 
 ## Mini Blog (um tema novo por semana)
 

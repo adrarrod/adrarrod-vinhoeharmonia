@@ -506,6 +506,21 @@ main { padding-bottom: 120px; }
 .modal-actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
 .modal-actions .btn { flex: 1; }
 
+/* esgotado */
+.soldout-label {
+  display: none;
+  margin: 2px 0 0;
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--err);
+}
+.card.is-soldout .soldout-label { display: block; }
+.soldout-label--modal { display: block; margin-top: 14px; font-size: .9rem; }
+.card.is-soldout .card-photo img { opacity: .4; filter: grayscale(.6); }
+.card.is-soldout .card-actions { display: none; }
+
 /* ícones de harmonização (comida) */
 .food-pairings { margin-top: 14px; }
 .food-pairings-label {
@@ -922,6 +937,34 @@ main { padding-bottom: 120px; }
 .order-meta-grid div { display: flex; flex-direction: column; gap: 2px; font-size: .86rem; }
 .order-meta-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .7px; color: var(--silver); font-weight: 600; }
 .order-address-full { grid-column: 1 / -1; }
+.order-cancel { margin: 0 0 10px; padding: 6px 14px; font-size: .8rem; }
+
+/* estoque no painel admin */
+.admin-stock { margin-bottom: 18px; }
+.stock-filter { margin: 8px 0 10px; }
+.stock-list { display: grid; gap: 6px; max-height: 420px; overflow-y: auto; }
+.stock-row {
+  display: grid;
+  grid-template-columns: 1fr 78px auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--surface-2);
+  border: 1px solid rgba(184, 184, 192, .12);
+  border-radius: 10px;
+  font-size: .86rem;
+}
+.stock-row.is-empty { border-color: rgba(226, 101, 122, .5); }
+.stock-name em { color: var(--err); font-style: normal; font-size: .72rem; text-transform: uppercase; letter-spacing: .6px; margin-left: 6px; }
+.stock-qty {
+  width: 100%;
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid rgba(184, 184, 192, .25);
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: var(--text);
+}
+.stock-save { padding: 6px 12px; font-size: .78rem; }
 
 .order-items { margin: 0 0 10px; padding-left: 18px; font-size: .86rem; color: var(--text); }
 .order-item-note { color: var(--muted); font-size: .8rem; }

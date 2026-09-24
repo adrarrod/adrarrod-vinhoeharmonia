@@ -225,12 +225,14 @@
           <div class="food-pairing-icons" id="pm-food-pairing-icons"></div>
         </div>
 
-        <div class="field" style="margin-top:12px">
+        <p class="soldout-label soldout-label--modal" id="pm-soldout" hidden>Esgotado no momento</p>
+
+        <div class="field" id="pm-note-field" style="margin-top:12px">
           <label for="pm-note">Observação (opcional)</label>
           <textarea id="pm-note" placeholder="Escreva aqui sua observação sobre este item…"></textarea>
         </div>
 
-        <div class="modal-actions">
+        <div class="modal-actions" id="pm-actions">
           <div class="stepper" id="pm-stepper">
             <button type="button" data-step="-1" aria-label="Diminuir quantidade">&minus;</button>
             <span class="qty" id="pm-qty">1</span>

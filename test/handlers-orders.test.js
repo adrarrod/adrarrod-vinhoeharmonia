@@ -10,7 +10,11 @@ const PASSWORD = 'admin-pass';
 
 function makeDeps(overrides = {}) {
   return {
-    execute: async (text) => (text.startsWith('INSERT') ? { rows: [{ id: 1 }] } : { rows: [] }),
+    execute: async (text) => {
+      if (text.startsWith('INSERT INTO orders')) return { rows: [{ id: 1 }] };
+      if (text.startsWith('UPDATE stock')) return { rows: [{ quantity: 0 }] }; // estoque suficiente
+      return { rows: [] };
+    },
     adminPassword: PASSWORD,
     sessionSecret: SECRET,
     ...overrides
@@ -36,6 +40,25 @@ test('POST creates an order and returns 201 with totals', async () => {
   assert.equal(res.statusCode, 201);
   assert.equal(res.body.id, 1);
   assert.equal(res.body.total, 72.1);
+});
+
+test('POST for more bottles than the stock returns 409 listing what is available, and writes nothing', async () => {
+  let inserted = false;
+  const handler = createOrdersHandler(makeDeps({
+    execute: async (text) => {
+      if (text.startsWith('INSERT INTO orders')) { inserted = true; return { rows: [{ id: 1 }] }; }
+      if (text.startsWith('UPDATE stock')) return { rows: [] };
+      if (text.startsWith('SELECT slug, quantity FROM stock')) return { rows: [{ slug: 'porta-6', quantity: 0 }] };
+      return { rows: [] };
+    }
+  }));
+  const req = mockReq({ method: 'POST', body: validBody() });
+  const res = mockRes();
+  await handler(req, res);
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.body.error, 'out_of_stock');
+  assert.deepEqual(res.body.items, [{ slug: 'porta-6', name: 'Porta 6', available: 0 }]);
+  assert.equal(inserted, false);
 });
 
 test('POST with invalid payload returns 400 with error list', async () => {

@@ -1,7 +1,8 @@
 // js/admin.js
 // Lógica do painel administrativo (admin.html): protegido por senha via
 // GET /api/orders (401 quando sem sessão) e POST /api/admin-login.
-// Página somente leitura — sem edição de status nesta v1.
+// Além dos pedidos, edita o estoque (/api/stock) e cancela pedidos devolvendo
+// as garrafas ao estoque (/api/order-cancel).
 (function () {
   'use strict';
 
@@ -14,6 +15,11 @@
   const ordersSection = document.getElementById('admin-orders');
   const ordersStatus = document.getElementById('orders-status');
   const ordersList = document.getElementById('orders-list');
+
+  const stockSection = document.getElementById('admin-stock');
+  const stockStatus = document.getElementById('stock-status');
+  const stockList = document.getElementById('stock-list');
+  const stockFilter = document.getElementById('stock-filter');
 
   const shippingSection = document.getElementById('admin-shipping');
   const shippingStatus = document.getElementById('melhor-envio-status');
@@ -51,12 +57,14 @@
     loginSection.hidden = false;
     ordersSection.hidden = true;
     shippingSection.hidden = true;
+    stockSection.hidden = true;
   }
 
   function showOrders() {
     loginSection.hidden = true;
     ordersSection.hidden = false;
     shippingSection.hidden = false;
+    stockSection.hidden = false;
   }
 
   function showMelhorEnvioNotice() {
@@ -150,6 +158,8 @@
           '<h3>Pedido #' + escapeHtml(order.id) + '</h3>' +
           '<span class="order-badge">' + escapeHtml(order.status || 'novo') + '</span>' +
         '</div>' +
+        (order.status === 'cancelado' ? '' :
+          '<button class="btn btn-ghost order-cancel" type="button" data-cancel-order="' + escapeHtml(order.id) + '">Cancelar pedido</button>') +
         '<p class="order-date">' + formatDate(order.created_at) + '</p>' +
         '<div class="order-meta-grid">' +
           '<div><span class="order-meta-label">Cliente</span><span>' + escapeHtml(order.full_name) + '</span></div>' +
@@ -204,6 +214,7 @@
       showOrders();
       setOrdersStatus('', false);
       renderOrders(orders);
+      loadStock();
       if (!showMelhorEnvioNotice()) {
         loadMelhorEnvioStatus();
       }
@@ -213,6 +224,106 @@
       setOrdersStatus('Falha de conexão ao buscar pedidos. Verifique sua internet e tente novamente.', true);
     }
   }
+
+  // ------------------------------------------------------------- estoque ---
+  let stockMap = {};
+
+  function setStockStatus(message, isError) {
+    stockStatus.hidden = !message;
+    stockStatus.textContent = message || '';
+    stockStatus.classList.toggle('card-msg', !!isError);
+  }
+
+  function renderStock() {
+    const query = stockFilter.value.trim();
+    const wines = (query ? window.Catalog.searchByName(query) : window.Catalog.MENU.slice())
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    if (!wines.length) {
+      stockList.innerHTML = '<p class="orders-empty">Nenhum vinho encontrado.</p>';
+      return;
+    }
+    stockList.innerHTML = wines.map((wine) => {
+      const qty = typeof stockMap[wine.slug] === 'number' ? stockMap[wine.slug] : '';
+      const empty = qty === 0;
+      return (
+        '<div class="stock-row' + (empty ? ' is-empty' : '') + '" data-slug="' + escapeHtml(wine.slug) + '">' +
+          '<span class="stock-name">' + escapeHtml(wine.name) + (empty ? ' <em>esgotado</em>' : '') + '</span>' +
+          '<input class="stock-qty" type="number" min="0" max="9999" step="1" inputmode="numeric" value="' + escapeHtml(qty) + '" aria-label="Estoque de ' + escapeHtml(wine.name) + '">' +
+          '<button class="btn btn-gold stock-save" type="button" data-stock-save>Salvar</button>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  async function loadStock() {
+    try {
+      const res = await fetch('/api/stock', { credentials: 'same-origin', cache: 'no-store' });
+      if (!res.ok) throw new Error('http ' + res.status);
+      stockMap = await res.json();
+      setStockStatus('', false);
+      renderStock();
+    } catch (err) {
+      setStockStatus('Não foi possível carregar o estoque agora.', true);
+    }
+  }
+
+  async function saveStock(row) {
+    const slug = row.dataset.slug;
+    const input = row.querySelector('.stock-qty');
+    const quantity = Number(input.value);
+    if (input.value.trim() === '' || !Number.isInteger(quantity) || quantity < 0) {
+      setStockStatus('Informe um número inteiro, zero ou maior.', true);
+      return;
+    }
+    const button = row.querySelector('[data-stock-save]');
+    button.disabled = true;
+    try {
+      const res = await fetch('/api/stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ slug, quantity })
+      });
+      if (res.status === 401) { showLogin(); return; }
+      if (!res.ok) throw new Error('http ' + res.status);
+      stockMap[slug] = quantity;
+      const wine = window.Catalog.findBySlug(slug);
+      setStockStatus('Estoque de ' + (wine ? wine.name : slug) + ' atualizado para ' + quantity + '.', false);
+      row.classList.toggle('is-empty', quantity === 0);
+    } catch (err) {
+      setStockStatus('Não foi possível salvar o estoque. Tente de novo.', true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function cancelOrder(orderId) {
+    if (!window.confirm('Cancelar o pedido #' + orderId + '? As garrafas voltam para o estoque.')) return;
+    try {
+      const res = await fetch('/api/order-cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ orderId: Number(orderId) })
+      });
+      if (res.status === 401) { showLogin(); return; }
+      if (!res.ok) throw new Error('http ' + res.status);
+      await loadOrders();
+      await loadStock();
+    } catch (err) {
+      setOrdersStatus('Não foi possível cancelar o pedido agora. Tente de novo.', true);
+    }
+  }
+
+  stockFilter.addEventListener('input', renderStock);
+  stockList.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-stock-save]');
+    if (btn) saveStock(btn.closest('.stock-row'));
+  });
+  ordersList.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-cancel-order]');
+    if (btn) cancelOrder(btn.dataset.cancelOrder);
+  });
 
   async function handleLoginSubmit(event) {
     event.preventDefault();

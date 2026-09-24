@@ -2,6 +2,17 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const svc = require('../lib/orders-service.js');
+const stock = require('../lib/stock-service.js');
+
+// Executor falso de um banco saudável: estoque sempre suficiente para a baixa.
+function healthyExecute(calls = [], orderId = 7) {
+  return async (text, params) => {
+    calls.push({ text, params });
+    if (text.startsWith('INSERT INTO orders')) return { rows: [{ id: orderId }] };
+    if (text.startsWith('UPDATE stock')) return { rows: [{ quantity: 0 }] };
+    return { rows: [] };
+  };
+}
 
 function validPayload(overrides = {}) {
   return {
@@ -126,29 +137,21 @@ test('createOrder rejects a negative freight cost without touching the db', asyn
 
 test('createOrder validates, computes totals, persists via deps.execute, returns totals + id', async () => {
   const calls = [];
-  const execute = async (text, params) => {
-    calls.push({ text, params });
-    if (text.startsWith('INSERT')) return { rows: [{ id: 7 }] };
-    return { rows: [] };
-  };
+  const execute = healthyExecute(calls, 7);
   const result = await svc.createOrder({ execute }, validPayload());
   assert.equal(result.id, 7);
   assert.equal(result.subtotal, 114.2);
   assert.equal(result.freight, 15);
   assert.equal(result.total, 129.2);
-  assert.ok(calls.some((c) => c.text.startsWith('INSERT')));
+  assert.ok(calls.some((c) => c.text.startsWith('INSERT INTO orders')));
 });
 
 test('createOrder ensures the schema exists before inserting', async () => {
   const calls = [];
-  const execute = async (text, params) => {
-    calls.push({ text, params });
-    if (text.startsWith('INSERT')) return { rows: [{ id: 7 }] };
-    return { rows: [] };
-  };
+  const execute = healthyExecute(calls, 7);
   await svc.createOrder({ execute }, validPayload());
   assert.match(calls[0].text, /CREATE TABLE IF NOT EXISTS orders/);
-  assert.ok(calls.findIndex((c) => /CREATE TABLE/.test(c.text)) < calls.findIndex((c) => c.text.startsWith('INSERT')));
+  assert.ok(calls.findIndex((c) => /CREATE TABLE/.test(c.text)) < calls.findIndex((c) => c.text.startsWith('INSERT INTO orders')));
 });
 
 test('listOrdersForAdmin ensures the schema exists before selecting', async () => {
@@ -164,11 +167,7 @@ test('listOrdersForAdmin ensures the schema exists before selecting', async () =
 
 test('createOrder ignores a forged item price and charges the catalog price', async () => {
   const calls = [];
-  const execute = async (text, params) => {
-    calls.push({ text, params });
-    if (text.startsWith('INSERT')) return { rows: [{ id: 1 }] };
-    return { rows: [] };
-  };
+  const execute = healthyExecute(calls, 1);
   // Porta 6 custa R$57,10 no catálogo; o cliente tenta pagar R$0,01.
   const payload = validPayload({
     items: [{ slug: 'porta-6', name: 'Grátis', price: 0.01, qty: 2 }]
@@ -178,7 +177,7 @@ test('createOrder ignores a forged item price and charges the catalog price', as
   // subtotal (114.20) + frete (15, do validPayload default) = 129.20
   assert.equal(result.total, 129.2);
 
-  const insert = calls.find((c) => c.text.startsWith('INSERT'));
+  const insert = calls.find((c) => c.text.startsWith('INSERT INTO orders'));
   const storedItems = JSON.parse(insert.params[9]);
   assert.equal(storedItems[0].price, 57.1);
   assert.equal(storedItems[0].name, 'Porta 6');
@@ -205,11 +204,56 @@ test('createOrder throws ValidationError and never calls execute for an invalid 
 });
 
 test('createOrder applies free shipping once subtotal crosses R$150', async () => {
-  const execute = async (text) => (text.startsWith('INSERT') ? { rows: [{ id: 1 }] } : { rows: [] });
+  const execute = healthyExecute([], 1);
   const payload = validPayload({ items: [{ slug: 'porta-6', name: 'Porta 6', price: 57.1, qty: 3 }] }); // subtotal 171.30
   const result = await svc.createOrder({ execute }, payload);
   assert.equal(result.subtotal, 171.3);
   assert.equal(result.freight, 0);
+});
+
+// --- estoque ---
+
+test('createOrder takes the stock of every item before it writes the order', async () => {
+  const calls = [];
+  const execute = healthyExecute(calls, 7);
+  await svc.createOrder({ execute }, validPayload());
+  const reserve = calls.findIndex((c) => c.text.startsWith('UPDATE stock'));
+  const insert = calls.findIndex((c) => c.text.startsWith('INSERT INTO orders'));
+  assert.ok(reserve >= 0 && reserve < insert);
+  assert.deepEqual(calls[reserve].params, ['porta-6', 2]);
+});
+
+test('createOrder refuses an order that asks for more than the stock and never writes it', async () => {
+  const calls = [];
+  const execute = async (text, params) => {
+    calls.push({ text, params });
+    if (text.startsWith('UPDATE stock')) return { rows: [] }; // sem saldo
+    if (text.startsWith('SELECT slug, quantity FROM stock')) return { rows: [{ slug: 'porta-6', quantity: 1 }] };
+    return { rows: [] };
+  };
+  await assert.rejects(
+    () => svc.createOrder({ execute }, validPayload()),
+    (err) => {
+      assert.ok(err instanceof stock.OutOfStockError);
+      assert.deepEqual(err.items, [{ slug: 'porta-6', name: 'Porta 6', available: 1 }]);
+      return true;
+    }
+  );
+  assert.equal(calls.some((c) => c.text.startsWith('INSERT INTO orders')), false);
+});
+
+test('createOrder gives the stock back when writing the order fails', async () => {
+  const calls = [];
+  const execute = async (text, params) => {
+    calls.push({ text, params });
+    if (text.startsWith('INSERT INTO orders')) throw new Error('connection lost');
+    if (text.startsWith('UPDATE stock SET quantity = quantity - ')) return { rows: [{ quantity: 0 }] };
+    return { rows: [] };
+  };
+  await assert.rejects(() => svc.createOrder({ execute }, validPayload()), /connection lost/);
+  const release = calls.find((c) => c.text.startsWith('UPDATE stock SET quantity = quantity + '));
+  assert.ok(release, 'stock was not released');
+  assert.deepEqual(release.params, ['porta-6', 2]);
 });
 
 test('listOrdersForAdmin delegates to db.listOrders', async () => {
