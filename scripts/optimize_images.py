@@ -103,7 +103,6 @@ SOURCE_MAP = {
     'porta-6-reserva': 'Porta6Reserva.jpg',
     'profugo-malbec': 'ProfugoMalbec.jpg',
     'profugo-sauvignon-blanc': 'Profugo Frutos de Verão Sauvignon Blanc.jpg',
-    'rola-colheita': 'Rola.jpg',
     'rosso-toscana-igt-rifugio-del-vescovo': 'rosso-toscana-igt-rifugio-del-vescovo.jpg',
     'sierra-batuco-reserva-cabernet-sauvignon': 'sierra-batuco-reserva-cabernet-sauvignon.jpg',
     'sierra-batuco-reserva-pinot-noir': 'sierra-batuco-reserva-pinot-noir.jpg',
@@ -119,7 +118,6 @@ SOURCE_MAP = {
     'vezzani-negroamaro-rosato': 'Vezzani Negroamaro Rosato.jpg',
     'vezzani-nero-d-avola': 'VezzaniNero.jpg',
     'vezzani-nero-di-troia': 'vezzani-nero-di-troia.jpg',
-    'vezzani-trebbiano': 'Trebbiano.jpg',
     'vinas-del-tango-cabernet-sauvignon': 'Vinas.jpg',
     'vinas-del-tango-selection-cabernet-franc': 'Viñas Del Tango Selection Cabernet Franc.jpg',
     'vinas-del-tango-selection-malbec': 'Viñas Del Tango Selection Malbec.jpg',
@@ -129,7 +127,6 @@ SOURCE_MAP = {
     'yali-wild-swan-sauvignon-blanc': 'Yali - Wild Swan Sauvignon Blanc.jpg',
     'romanica-pinot-grigio': 'RomanicaPinot.jpg',
     'stormhoek-shiraz-pure': 'Stormhoek Shiraz Pure.jpg',
-    'marthas-porto-rose': 'MarthasRose.jpg',
     # Adicionados depois da primeira importação, com apoio do dono da loja:
     # 'paso-de-los-andes-reserva-tinto' reaproveita a mesma foto de
     # 'passo-de-los-andes-carmenere' (confirmado pelo dono, não tem foto

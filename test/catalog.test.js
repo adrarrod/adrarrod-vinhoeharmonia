@@ -6,7 +6,7 @@ const Catalog = require('../js/catalog.js');
 const KNOWN_CATEGORIES = ['Tinto', 'Branco', 'Rosé', 'Espumante', 'Sobremesa'];
 
 test('MENU has the full catalog, every wine in a known category', () => {
-  assert.equal(Catalog.MENU.length, 115);
+  assert.equal(Catalog.MENU.length, 112);
   for (const wine of Catalog.MENU) {
     assert.ok(KNOWN_CATEGORIES.includes(wine.category), `unexpected category ${wine.category} on ${wine.name}`);
   }
@@ -23,6 +23,8 @@ test('every wine has required fields, a unique slug, and exactly 3 pairings', ()
     // valor válido, só não pode ser um número fora da faixa plausível.
     assert.ok(wine.abv === null || (typeof wine.abv === 'number' && wine.abv > 0 && wine.abv < 25), `implausible abv on ${wine.name}`);
     assert.ok(Array.isArray(wine.pairings) && wine.pairings.length === 3, `expected 3 pairings on ${wine.name}`);
+    // initialStock é só a semente do estoque real (que vive no banco): inteiro >= 0.
+    assert.ok(Number.isInteger(wine.initialStock) && wine.initialStock >= 0, `invalid initialStock on ${wine.name}`);
     assert.ok(!seen.has(wine.slug), `duplicate slug ${wine.slug}`);
     seen.add(wine.slug);
   }
