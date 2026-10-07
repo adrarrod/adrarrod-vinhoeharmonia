@@ -7,10 +7,11 @@ const Blog = require('../js/blog.js');
 
 const IMG_DIR = path.join(__dirname, '..', 'blog-img');
 
-test('Mini Blog starts with the three planned themes, in order', () => {
+test('Mini Blog lists the newest post first and keeps the earlier themes, in order', () => {
+  // Post novo entra no INÍCIO da lista (ver js/blog.js): a ordem dos antigos não muda.
   assert.deepEqual(
     Blog.POSTS.map((p) => p.slug),
-    ['vinhos-do-brasil', 'harmonizacao-com-carnes', 'vinhos-de-portugal']
+    ['vinhos-da-argentina', 'vinhos-do-brasil', 'harmonizacao-com-carnes', 'vinhos-de-portugal']
   );
 });
 

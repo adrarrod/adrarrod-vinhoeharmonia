@@ -10,6 +10,14 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const POSTS = [
     {
+      slug: 'vinhos-da-argentina',
+      tag: 'Vinhos da Argentina',
+      title: 'Argentina: Malbec e o frescor dos Andes',
+      summary: 'A Argentina é a casa do Malbec, uva de origem francesa que encontrou ali seu melhor lugar. A região de Mendoza, aos pés da Cordilheira dos Andes, tem vinhedos em altitude, com muito sol de dia e noites frescas, o que dá vinhos de cor intensa, fruta madura e boa acidez. Entre os brancos, o destaque é o Torrontés, aromático e floral, muito típico de Salta. Os tintos pedem churrasco e empanadas; o Torrontés vai bem com peixes e petiscos.',
+      image: 'blog-img/vinhos-da-argentina.svg',
+      imageAlt: 'Ilustração da Cordilheira dos Andes com picos nevados ao entardecer e vinhedos em fileiras em primeiro plano'
+    },
+    {
       slug: 'vinhos-do-brasil',
       tag: 'Vinhos do Brasil',
       title: 'Do Sul do Brasil para a sua mesa',
