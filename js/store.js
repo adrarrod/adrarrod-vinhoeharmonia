@@ -309,6 +309,53 @@
     }
   }
 
+  // ------------------------------------------------------- harmonizações ---
+  // Faixa deslizável de pratos (dados em js/harmonizacao.js). Cada card leva à
+  // seção correspondente de harmonizacao.html.
+  function initHarmonization() {
+    var section = $('#harmonizacoes');
+    var track = $('#hz-track');
+    var Hz = window.Harmonizacao;
+    if (!section || !track || !Hz) { if (section) section.hidden = true; return; }
+
+    track.innerHTML = Hz.TYPES.map(function (type) {
+      return '' +
+        '<article class="hz-card">' +
+          '<img src="' + esc(type.image) + '" alt="' + esc(type.imageAlt) + '" loading="lazy" width="960" height="600">' +
+          '<div class="hz-card-body">' +
+            '<h3>' + esc(type.title) + '</h3>' +
+            '<p>' + esc(type.cardText) + '</p>' +
+            '<a class="btn btn-ghost" href="' + esc(Hz.pageUrl(type)) + '" aria-label="Saiba mais sobre harmonização com ' + esc(type.title) + '">Saiba mais</a>' +
+          '</div>' +
+        '</article>';
+    }).join('');
+
+    var prev = $('#hz-prev');
+    var next = $('#hz-next');
+
+    function step(direction) {
+      var card = $('.hz-card', track);
+      var gap = parseFloat(getComputedStyle(track).columnGap) || 14;
+      var by = card ? card.getBoundingClientRect().width + gap : track.clientWidth * 0.8;
+      track.scrollBy({ left: direction * by, behavior: 'smooth' });
+    }
+
+    function updateArrows() {
+      var max = track.scrollWidth - track.clientWidth;
+      var overflow = max > 4;
+      prev.hidden = !overflow;
+      next.hidden = !overflow;
+      prev.disabled = track.scrollLeft <= 2;
+      next.disabled = track.scrollLeft >= max - 2;
+    }
+
+    prev.addEventListener('click', function () { step(-1); });
+    next.addEventListener('click', function () { step(1); });
+    track.addEventListener('scroll', updateArrows, { passive: true });
+    window.addEventListener('resize', updateArrows);
+    updateArrows();
+  }
+
   // ------------------------------------------------------------- pesquisa ---
   function renderSearchResults(query) {
     var matches = Catalog.searchByName(query);
@@ -318,6 +365,7 @@
 
     $('#tabs').hidden = true;
     $('#catalog').hidden = true;
+    $('#harmonizacoes').hidden = true;
     $('#search-results').hidden = false;
 
     empty.hidden = matches.length > 0;
@@ -331,6 +379,7 @@
     $('#search-clear').hidden = true;
     $('#tabs').hidden = false;
     $('#catalog').hidden = false;
+    $('#harmonizacoes').hidden = false;
     $('#search-results').hidden = true;
   }
 
@@ -1218,6 +1267,7 @@
     $('#promo-threshold').textContent = money(Pricing.FREE_SHIPPING_THRESHOLD);
     renderCatalog();
     initSearch();
+    initHarmonization();
     initProductModal();
     initCart();
     initCheckout();

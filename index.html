@@ -123,6 +123,18 @@
 
   <!-- ================================================================ main -->
   <main class="wrap">
+    <section class="hz-home" id="harmonizacoes" aria-labelledby="hz-title">
+      <div class="category-head">
+        <h2 id="hz-title">Harmonizações</h2>
+        <span class="category-count">Escolha pelo prato</span>
+      </div>
+      <div class="hz-carousel">
+        <button class="hz-arrow hz-arrow--prev" type="button" id="hz-prev" aria-label="Ver anteriores" disabled>&lsaquo;</button>
+        <div class="hz-track" id="hz-track"></div>
+        <button class="hz-arrow hz-arrow--next" type="button" id="hz-next" aria-label="Ver próximos">&rsaquo;</button>
+      </div>
+    </section>
+
     <div id="catalog"><!-- seções por categoria renderizadas por js/store.js --></div>
 
     <div class="search-results" id="search-results" hidden>
@@ -426,6 +438,7 @@
 
   <script src="js/catalog.js"></script>
   <script src="js/pricing.js"></script>
+  <script src="js/harmonizacao.js"></script>
   <script src="js/store.js"></script>
 </body>
 </html>

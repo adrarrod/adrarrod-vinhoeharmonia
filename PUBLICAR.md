@@ -149,6 +149,26 @@ O cliente nunca consegue comprar mais garrafas do que existem. Como funciona:
 Atenção: pedido em PIX que o cliente não pagar continua segurando as garrafas até
 você cancelá-lo no painel; o mesmo vale para pedido com cartão recusado.
 
+## Harmonizações (faixa da home e página de explicação)
+
+A faixa "Harmonizações" da home (antes da lista de vinhos) e a página
+`harmonizacao.html` leem os pratos de `js/harmonizacao.js`. Cada card da home leva
+à seção do mesmo prato na página (`harmonizacao.html#slug`). Para acrescentar um
+prato novo:
+
+1. Coloque a foto em `harmonizacao-img/` (de preferência 960x600, horizontal,
+   `.jpg`).
+2. Em `js/harmonizacao.js`, acrescente um objeto ao fim de `TYPES` com `slug`
+   (só letras minúsculas, números e hífen — é a âncora da página), `title`,
+   `cardText` (até 180 caracteres), `intro` (até 600), `tips` (3 ou 4 dicas),
+   `grapes` (uvas e estilos), `image` e `imageAlt`.
+3. Rode `npm test` — ele confere os campos, os limites de texto e se toda foto
+   existe na pasta, sem arquivo sobrando.
+4. Incremente o `CACHE_NAME` em `sw.js`: `js/harmonizacao.js` faz parte do app
+   shell cacheado (a página `harmonizacao.html` em si não é cacheada).
+
+Assim como o blog, a página exige a confirmação de idade da home.
+
 ## Mini Blog (um tema novo por semana)
 
 A página `blog.html` lê os posts de `js/blog.js`. Para publicar um tema novo:

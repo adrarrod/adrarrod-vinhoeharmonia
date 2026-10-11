@@ -204,6 +204,110 @@ button { cursor: pointer; }
 .blog-cta { text-align: center; margin: 26px 0 0; }
 .blog-cta .btn { display: inline-block; text-decoration: none; }
 
+/* ------------------------------------------------ harmonizações (home) -- */
+.hz-home { padding-top: 22px; }
+.hz-carousel { position: relative; }
+.hz-track {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 2px 2px 10px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.hz-track::-webkit-scrollbar { display: none; }
+.hz-card {
+  flex: 0 0 min(78%, 300px);
+  scroll-snap-align: start;
+  background: var(--surface);
+  border: 1px solid rgba(184, 184, 192, .15);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+}
+.hz-card img { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; background: #14090d; }
+.hz-card-body { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.hz-card-body h3 { font-size: 1.2rem; line-height: 1.15; }
+.hz-card-body p { color: var(--muted); font-size: .86rem; margin: 0; }
+.hz-card-body .btn { margin-top: auto; align-self: flex-start; display: inline-block; text-decoration: none; padding: 8px 16px; font-size: .84rem; }
+.hz-arrow {
+  position: absolute;
+  top: 84px;
+  z-index: 2;
+  width: 38px; height: 38px;
+  border: 1px solid rgba(196, 154, 61, .55);
+  border-radius: 50%;
+  background: rgba(18, 10, 13, .78);
+  backdrop-filter: blur(2px);
+  color: var(--gold-soft);
+  font-size: 1.5rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  padding: 0 0 3px;
+}
+.hz-arrow:hover:not(:disabled) { background: var(--accent); border-color: var(--gold); color: #fff; }
+.hz-arrow:disabled { opacity: .35; cursor: default; }
+.hz-arrow--prev { left: -6px; }
+.hz-arrow--next { right: -6px; }
+/* No celular o cliente desliza com o dedo; as setas só fazem sentido com mouse. */
+@media (hover: none) { .hz-arrow { display: none; } }
+
+/* ------------------------------------------------ página harmonizacao.html -- */
+.hz-page-main { padding-top: 22px; padding-bottom: 28px; }
+.hz-jump { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.hz-jump a {
+  border: 1px solid rgba(184, 184, 192, .3);
+  background: rgba(255, 255, 255, .04);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: .84rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.hz-jump a:hover { color: var(--text); border-color: var(--gold); }
+.hz-list { display: grid; gap: 18px; margin-top: 20px; }
+.hz-section {
+  background: var(--surface);
+  border: 1px solid rgba(184, 184, 192, .15);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  scroll-margin-top: var(--header-h);
+}
+.hz-section img { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; background: #14090d; }
+.hz-section-body { padding: 16px 18px 20px; }
+.hz-section-body h3 { font-size: 1.7rem; line-height: 1.1; margin-bottom: 8px; }
+.hz-section-body > p { color: var(--muted); font-size: .94rem; }
+.hz-section-body h4 {
+  font-family: var(--font-body);
+  font-size: .76rem;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--gold);
+  margin: 14px 0 6px;
+}
+.hz-tips { margin: 0; padding-left: 18px; font-size: .9rem; }
+.hz-tips li { margin-bottom: 4px; }
+.hz-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hz-chip {
+  border: 1px solid rgba(196, 154, 61, .45);
+  background: rgba(196, 154, 61, .08);
+  color: var(--gold-soft);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: .8rem;
+  font-weight: 600;
+}
+@media (min-width: 760px) {
+  .hz-section { display: grid; grid-template-columns: 5fr 7fr; }
+  .hz-section img { height: 100%; aspect-ratio: auto; min-height: 280px; }
+}
+
 /* aviso de frete grátis no topo */
 .promo-bar {
   background: linear-gradient(90deg, #4a1226, var(--accent), #4a1226);
