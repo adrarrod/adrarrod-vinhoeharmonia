@@ -17,7 +17,7 @@
     { slug: 'bianco-toscana-igt-rifugio-del-vescovo', name: 'Bianco Toscana Igt Rifugio Del Vescovo', category: 'Branco', price: 95.65, country: 'Itália', grape: 'Blend', image: 'img/bianco-toscana-igt-rifugio-del-vescovo.jpg', description: 'O Bianco Toscana IGT Rifugio Del Vescovo une tradição e leveza em um branco vibrante, perfeito para momentos especiais ou para transformar o dia a dia em celebração.', abv: 11.5, pairings: ['Frutos do Mar', 'Peixes', 'Ceviche'], initialStock: 1 },
     { slug: 'boa-noite-lisboa', name: 'Boa Noite Lisboa', category: 'Tinto', price: 55.35, country: 'Portugal', grape: 'Blend', image: 'img/boa-noite-lisboa.jpg', description: 'O Boa Noite Liksboa, da região de Lisboa, combina duas uvas que se complementam muito bem: a Syrah, intensa e envolvente, que entrega corpo estruturado, notas de frutas negras, especiarias e um toque de pimenta-preta, e a Touriga Nacional, elegante e aromática', abv: 14.0, pairings: ['Carnes', 'Bacalhau', 'Pizza'], initialStock: 1 },
     { slug: 'bodega-torrontes', name: 'Bodega Torrontés', category: 'Branco', price: 56.88, country: 'Argentina', grape: 'Torrontés', image: 'img/bodega-torrontes.jpg', description: 'Perfeito para dias quentes, varanda/happy hour e brunch. Vai muito bem com ceviche, frutos do mar, sushi, saladas aromáticas, empanadas, queijos leves e pratos com toque cítrico/agridoce.', abv: 12.8, pairings: ['Ceviche', 'Saladas', 'Frutos do Mar'], initialStock: 1 },
-    { slug: 'bridao-merlot', name: 'Bridão Merlot', category: 'Tinto', price: 103.56, country: 'Imperial', grape: 'Merlot', image: 'img/bridao-merlot.jpg', description: 'O Bridão Merlot 2017 é um tinto de perfil redondo e convidativo, com a Merlot mostrando seu lado mais macio: frutas vermelhas e negras maduras, leve toque de especiarias e uma textura aveludada que deixa o vinho fácil de beber.', abv: 14.0, pairings: ['Carnes', 'Pizza', 'Ensopados'], initialStock: 1 },
+    { slug: 'bridao-merlot', name: 'Bridão Merlot', category: 'Tinto', price: 103.56, country: 'Portugal', grape: 'Merlot', image: 'img/bridao-merlot.jpg', description: 'O Bridão Merlot 2017 é um tinto de perfil redondo e convidativo, com a Merlot mostrando seu lado mais macio: frutas vermelhas e negras maduras, leve toque de especiarias e uma textura aveludada que deixa o vinho fácil de beber.', abv: 14.0, pairings: ['Carnes', 'Pizza', 'Ensopados'], initialStock: 1 },
     { slug: 'buenardo-malbec-vinho-organico', name: 'Buenardo Malbec Vinho Orgânico', category: 'Tinto', price: 75.3, country: 'Argentina', grape: 'Malbec', image: 'img/buenardo-malbec-vinho-organico.jpg', description: 'Um vinho com certificação orgânica, onde as frutas mais frescas são evidenciadas. Elaborado com a casta Malbec, é uma excelente opção de custo-benefício para quem deseja experimentar um vinho orgânico.', abv: 13.3, pairings: ['Carnes', 'Pizza', 'Ensopados'], initialStock: 1 },
     { slug: 'ca-montebello-barbera', name: 'Cà Montebello BARBERA', category: 'Tinto', price: 87.03, country: 'Itália', grape: 'Barbera', image: 'img/ca-montebello-barbera.jpg', description: 'O Cà Montebello Barbera revela toda a força da uva Barbera, uma das mais tradicionais da Itália. Com aromas de frutas vermelhas maduras, notas sutis de especiarias e acidez vibrante, é um vinho cheio de caráter e autenticidade', abv: 13.5, pairings: ['Massas', 'Pizza', 'Carnes'], initialStock: 1 },
     { slug: 'ca-montebello-pinot-nero', name: 'Cà Montebello Pinot Nero', category: 'Tinto', price: 80.24, country: 'Itália', grape: 'Pinot Noir', image: 'img/ca-montebello-pinot-nero.jpg', description: 'Direto da Lombardia, na Itália, este Pinot Noir — conhecido como Pinot Nero traz elegância e suavidade. Um vinho ideal para impressionar em encontros românticos e jantares especiais. Delicado, aromático e com muito charme italiano.', abv: 13.0, pairings: ['Peixes', 'Charcutaria', 'Carnes'], initialStock: 1 },
@@ -144,6 +144,39 @@
     return MENU.filter((w) => normalizeText(w.name).indexOf(q) !== -1);
   }
 
+  // Uvas de um vinho. Cortes escritos com barra ("Pinot Grigio / Riesling")
+  // contam para cada uva, para o filtro achá-los por qualquer uma delas.
+  function grapesOf(wine) {
+    return String(wine.grape || '').split('/').map((g) => g.trim()).filter(Boolean);
+  }
+
+  function countBy(valuesOf) {
+    const counts = new Map();
+    for (const wine of MENU) {
+      for (const value of valuesOf(wine)) counts.set(value, (counts.get(value) || 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => a.value.localeCompare(b.value, 'pt-BR'));
+  }
+
+  // Opções dos filtros da home: [{ value, count }], em ordem alfabética.
+  const COUNTRIES = countBy((w) => [w.country]);
+  const GRAPES = countBy(grapesOf);
+
+  // Combina nome (sem acento/maiúscula), país e uva com E. Sem filtro nenhum,
+  // devolve o catálogo inteiro.
+  function filterWines(filters) {
+    const f = filters || {};
+    const q = normalizeText(f.query).trim();
+    return MENU.filter((w) => {
+      if (q && normalizeText(w.name).indexOf(q) === -1) return false;
+      if (f.country && w.country !== f.country) return false;
+      if (f.grape && grapesOf(w).indexOf(f.grape) === -1) return false;
+      return true;
+    });
+  }
+
   function suggestPairings(slug, count) {
     const target = findBySlug(slug);
     if (!target) return [];
@@ -195,5 +228,5 @@
     return PAIRING_ICONS[category] || DEFAULT_PAIRING_ICON;
   }
 
-  return { MENU, CATEGORIES, findBySlug, suggestPairings, searchByName, pairingIcon };
+  return { MENU, CATEGORIES, COUNTRIES, GRAPES, findBySlug, suggestPairings, searchByName, filterWines, grapesOf, pairingIcon };
 });

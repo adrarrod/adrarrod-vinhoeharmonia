@@ -357,8 +357,16 @@
   }
 
   // ------------------------------------------------------------- pesquisa ---
-  function renderSearchResults(query) {
-    var matches = Catalog.searchByName(query);
+  function currentFilters() {
+    return {
+      query: $('#wine-search').value.trim(),
+      country: $('#filter-country').value,
+      grape: $('#filter-grape').value
+    };
+  }
+
+  function showResults(filters) {
+    var matches = Catalog.filterWines(filters);
     var grid = $('#search-results-grid');
     var count = $('#search-results-count');
     var empty = $('#search-empty');
@@ -374,13 +382,43 @@
     applyStockToCards();
   }
 
-  function clearSearch() {
-    $('#wine-search').value = '';
-    $('#search-clear').hidden = true;
+  function showCatalogView() {
     $('#tabs').hidden = false;
     $('#catalog').hidden = false;
     $('#harmonizacoes').hidden = false;
     $('#search-results').hidden = true;
+  }
+
+  // Ponto único: busca por nome, país e uva se combinam (E). Sem nenhum filtro
+  // ativo, volta para a vitrine por categorias.
+  function applyFilters() {
+    var f = currentFilters();
+    $('#search-clear').hidden = !f.query;
+    $('#filter-country').classList.toggle('is-set', !!f.country);
+    $('#filter-grape').classList.toggle('is-set', !!f.grape);
+
+    if (!f.query && !f.country && !f.grape) { showCatalogView(); return; }
+
+    var wasHidden = $('#search-results').hidden;
+    showResults(f);
+    // Quem escolhe um filtro lá embaixo na página precisa ver o resultado.
+    if (wasHidden) window.scrollTo(0, 0);
+  }
+
+  function clearAllFilters() {
+    $('#wine-search').value = '';
+    $('#filter-country').value = '';
+    $('#filter-grape').value = '';
+    applyFilters();
+  }
+
+  function fillFilterOptions(select, options) {
+    options.forEach(function (opt) {
+      var el = document.createElement('option');
+      el.value = opt.value;
+      el.textContent = opt.value + ' (' + opt.count + ')';
+      select.appendChild(el);
+    });
   }
 
   function initSearch() {
@@ -388,21 +426,25 @@
     var clearBtn = $('#search-clear');
     var results = $('#search-results');
 
-    input.addEventListener('input', function () {
-      var query = input.value.trim();
-      clearBtn.hidden = query.length === 0;
-      if (!query) { clearSearch(); return; }
-      renderSearchResults(query);
-    });
+    fillFilterOptions($('#filter-country'), Catalog.COUNTRIES);
+    fillFilterOptions($('#filter-grape'), Catalog.GRAPES);
 
+    input.addEventListener('input', applyFilters);
+    $('#filter-country').addEventListener('change', applyFilters);
+    $('#filter-grape').addEventListener('change', applyFilters);
+
+    // O "×" do campo limpa só o texto; os filtros de país/uva continuam.
     clearBtn.addEventListener('click', function () {
-      clearSearch();
+      input.value = '';
+      applyFilters();
       input.focus();
     });
 
+    $('#filters-clear').addEventListener('click', clearAllFilters);
+
     results.addEventListener('click', function (event) {
       if (event.target.closest('#search-clear-inline')) {
-        clearSearch();
+        clearAllFilters();
         input.focus();
         return;
       }

@@ -95,3 +95,73 @@ test('CATEGORIES lists each distinct category once, in order of first appearance
   assert.deepEqual(Catalog.CATEGORIES, expected);
   assert.equal(new Set(Catalog.CATEGORIES).size, Catalog.CATEGORIES.length);
 });
+
+// --- filtros por país e por uva ---
+
+test('COUNTRIES lists each country once, sorted, with the number of wines, and covers the whole catalog', () => {
+  const values = Catalog.COUNTRIES.map((c) => c.value);
+  assert.equal(new Set(values).size, values.length);
+  assert.deepEqual(values, [...values].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+  assert.equal(Catalog.COUNTRIES.reduce((sum, c) => sum + c.count, 0), Catalog.MENU.length);
+  for (const c of Catalog.COUNTRIES) {
+    assert.equal(c.count, Catalog.MENU.filter((w) => w.country === c.value).length, c.value);
+  }
+});
+
+test('every country in the catalog is a real country (Bridão Merlot is from Tejo, Portugal)', () => {
+  // "Imperial" veio de um campo errado da planilha e aparecia como país.
+  assert.ok(!Catalog.COUNTRIES.some((c) => c.value === 'Imperial'));
+  assert.equal(Catalog.findBySlug('bridao-merlot').country, 'Portugal');
+});
+
+test('grapesOf splits blends written with a slash, and returns a single grape as is', () => {
+  assert.deepEqual(Catalog.grapesOf({ grape: 'Malbec' }), ['Malbec']);
+  assert.deepEqual(Catalog.grapesOf({ grape: 'Pinot Grigio / Riesling' }), ['Pinot Grigio', 'Riesling']);
+});
+
+test('GRAPES counts a mixed wine under each of its grapes and never lists a "/" option', () => {
+  const values = Catalog.GRAPES.map((g) => g.value);
+  assert.equal(new Set(values).size, values.length);
+  assert.ok(values.every((v) => !v.includes('/')));
+  assert.deepEqual(values, [...values].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+  for (const g of Catalog.GRAPES) {
+    assert.equal(g.count, Catalog.MENU.filter((w) => Catalog.grapesOf(w).includes(g.value)).length, g.value);
+  }
+  const grigio = Catalog.GRAPES.find((g) => g.value === 'Pinot Grigio');
+  assert.ok(grigio.count >= 2, 'o corte Pinot Grigio / Riesling também conta como Pinot Grigio');
+});
+
+test('filterWines with no filters returns the whole catalog', () => {
+  assert.equal(Catalog.filterWines().length, Catalog.MENU.length);
+  assert.equal(Catalog.filterWines({ query: '', country: '', grape: '' }).length, Catalog.MENU.length);
+});
+
+test('filterWines by country returns only that country', () => {
+  const chile = Catalog.filterWines({ country: 'Chile' });
+  assert.ok(chile.length > 0);
+  assert.ok(chile.every((w) => w.country === 'Chile'));
+  assert.equal(chile.length, Catalog.COUNTRIES.find((c) => c.value === 'Chile').count);
+});
+
+test('filterWines by grape finds single-grape wines and the mixed wine that contains it', () => {
+  const riesling = Catalog.filterWines({ grape: 'Riesling' });
+  assert.ok(riesling.some((w) => w.grape === 'Riesling'));
+  assert.ok(riesling.some((w) => w.grape === 'Pinot Grigio / Riesling'));
+  assert.ok(riesling.every((w) => Catalog.grapesOf(w).includes('Riesling')));
+});
+
+test('filterWines combines country, grape and name with AND', () => {
+  const malbecArgentina = Catalog.filterWines({ country: 'Argentina', grape: 'Malbec' });
+  assert.ok(malbecArgentina.length > 0);
+  assert.ok(malbecArgentina.every((w) => w.country === 'Argentina' && w.grape === 'Malbec'));
+
+  const byName = Catalog.filterWines({ query: 'VIÑAS', country: 'Argentina', grape: 'Malbec' });
+  assert.ok(byName.length > 0 && byName.length < malbecArgentina.length);
+  assert.ok(byName.every((w) => /vi[nñ]as/i.test(w.name)));
+
+  assert.deepEqual(Catalog.filterWines({ country: 'Chile', grape: 'Malbec' }), []);
+});
+
+test('filterWines ignores a blank or whitespace-only name, like searchByName does', () => {
+  assert.equal(Catalog.filterWines({ query: '   ', country: 'Chile' }).length, Catalog.filterWines({ country: 'Chile' }).length);
+});

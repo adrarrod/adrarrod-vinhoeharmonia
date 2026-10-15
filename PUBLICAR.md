@@ -115,6 +115,14 @@ Para trocar fotos: coloque o arquivo novo em `img/`, aponte `image` para ele no
 `js/catalog.js`, e rode `python3 scripts/optimize_images.py` de novo se quiser
 que o script também otimize as novas fotos (ajuste o `SOURCE_MAP` no script).
 
+Os filtros **País** e **Uva** da home são montados sozinhos a partir dos campos
+`country` e `grape` de cada vinho (o número entre parênteses é a quantidade de
+vinhos). Por isso o valor desses campos precisa estar padronizado: "Itália" e
+"italia" virariam duas opções diferentes, e um erro de digitação na planilha
+(como "Aegentina") aparece como um país novo. Corte de uvas escrito com barra,
+como `Pinot Grigio / Riesling`, é separado: o vinho aparece ao filtrar por
+qualquer uma das duas.
+
 > ⚠️ `js/catalog.js` e `js/pricing.js` fazem parte do app shell cacheado pelo service
 > worker: depois de mexer em produtos, preços, fotos ou cupons, **incremente o
 > `CACHE_NAME` em `sw.js`** — veja o aviso no fim da seção "Antes de divulgar o site".

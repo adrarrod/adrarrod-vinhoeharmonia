@@ -107,6 +107,14 @@
           <input type="search" id="wine-search" class="search-input" placeholder="Buscar vinho pelo nome…" aria-label="Buscar vinho pelo nome" autocomplete="off">
           <button type="button" class="search-clear" id="search-clear" aria-label="Limpar busca" hidden>&times;</button>
         </div>
+        <div class="filter-row">
+          <select id="filter-country" class="filter-select" aria-label="Filtrar por país">
+            <option value="">Todos os países</option>
+          </select>
+          <select id="filter-grape" class="filter-select" aria-label="Filtrar por uva">
+            <option value="">Todas as uvas</option>
+          </select>
+        </div>
       </div>
     </div>
     <div class="wrap">
@@ -139,11 +147,12 @@
 
     <div class="search-results" id="search-results" hidden>
       <div class="category-head">
-        <h2>Resultados da busca</h2>
+        <h2>Resultados</h2>
         <span class="category-count" id="search-results-count"></span>
+        <button type="button" class="btn-link filters-clear" id="filters-clear">Limpar filtros</button>
       </div>
       <p class="search-empty" id="search-empty" hidden>
-        Nenhum vinho encontrado. <button type="button" class="btn-link" id="search-clear-inline">Limpar busca</button>
+        Nenhum vinho encontrado com essa combinação. <button type="button" class="btn-link" id="search-clear-inline">Limpar filtros</button>
       </p>
       <div class="grid" id="search-results-grid"></div>
     </div>

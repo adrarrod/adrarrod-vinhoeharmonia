@@ -349,6 +349,33 @@ button { cursor: pointer; }
 }
 .search-clear:hover { background: rgba(255, 255, 255, .16); }
 
+/* filtros por país e uva */
+.filter-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.filter-select {
+  width: 100%;
+  min-width: 0;
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid rgba(184, 184, 192, .25);
+  border-radius: 10px;
+  padding: 9px 10px;
+  color: var(--muted);
+  font-size: .88rem;
+  color-scheme: dark;
+  transition: border-color .2s ease;
+}
+.filter-select:focus { border-color: var(--gold); outline: none; box-shadow: none; }
+.filter-select.is-set { border-color: var(--gold); color: var(--gold-soft); font-weight: 600; }
+.filters-clear { margin-left: auto; font-size: .82rem; }
+
+/* Celular: o cabeçalho é fixo, então a linha de filtros é compensada tirando o
+   slogan (2 linhas) e apertando os espaços — senão ele ocupa ~30% da tela. */
+@media (max-width: 520px) {
+  .brand { padding: 10px 0 6px; }
+  .brand-slogan { display: none; }
+  .search-bar-wrap { padding-bottom: 8px; }
+  .filter-row { margin-top: 6px; }
+}
+
 /* abas de categoria (scrollspy) */
 .tabs {
   display: flex;
