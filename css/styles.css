@@ -354,7 +354,10 @@ button { cursor: pointer; }
 .filter-select {
   width: 100%;
   min-width: 0;
-  background: rgba(0, 0, 0, .32);
+  /* Fundo SÓLIDO: a lista de opções herda o fundo do campo, e um fundo
+     translúcido vira cinza sobre o branco do menu do navegador (no computador),
+     deixando o texto claro ilegível. */
+  background-color: #0e080b;
   border: 1px solid rgba(184, 184, 192, .25);
   border-radius: 10px;
   padding: 9px 10px;
@@ -365,6 +368,8 @@ button { cursor: pointer; }
 }
 .filter-select:focus { border-color: var(--gold); outline: none; box-shadow: none; }
 .filter-select.is-set { border-color: var(--gold); color: var(--gold-soft); font-weight: 600; }
+/* Opções da lista: cores explícitas (não herdam o dourado/negrito do campo). */
+.filter-select option { background-color: #1a0f13; color: var(--text); font-weight: 400; }
 .filters-clear { margin-left: auto; font-size: .82rem; }
 
 /* Celular: o cabeçalho é fixo, então a linha de filtros é compensada tirando o
