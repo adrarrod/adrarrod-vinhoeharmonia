@@ -356,6 +356,89 @@
     updateArrows();
   }
 
+  // ------------------------------------------------------------- coleções ---
+  // Banner na home (js/colecoes.js) -> index.html#slug -> a própria home mostra só
+  // os vinhos da coleção, com carrinho, estoque e popup iguais aos da vitrine.
+  function currentCollection() {
+    var Co = window.Colecoes;
+    if (!Co || !window.location.hash) return undefined;
+    var slug;
+    try { slug = decodeURIComponent(window.location.hash.slice(1)); } catch (e) { return undefined; }
+    return Co.findActive(slug, new Date());
+  }
+
+  // Saiu da coleção (busca, filtro ou "Voltar"): tira o #slug da URL para o
+  // endereço não continuar apontando para uma tela que não está mais aberta.
+  function leaveCollectionHash() {
+    if (currentCollection()) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }
+
+  function renderBanners() {
+    var box = $('#colecao-banners');
+    var Co = window.Colecoes;
+    var active = Co ? Co.activeCollections(new Date()) : [];
+    box.innerHTML = active.map(function (c) {
+      return '' +
+        '<a class="banner-link" href="#' + esc(c.slug) + '">' +
+          '<picture>' +
+            '<source media="(max-width: 600px)" srcset="' + esc(c.bannerMobile) + '">' +
+            '<img src="' + esc(c.bannerDesktop) + '" alt="' + esc(c.bannerAlt) + '" width="1600" height="533">' +
+          '</picture>' +
+          '<span class="banner-cta">' + esc(c.ctaText) + ' &rarr;</span>' +
+        '</a>';
+    }).join('');
+    box.hidden = active.length === 0;
+  }
+
+  function showCollection(collection) {
+    var wines = collection.wines
+      .map(function (slug) { return Catalog.findBySlug(slug); })
+      .filter(Boolean);
+
+    $('#tabs').hidden = true;
+    $('#catalog').hidden = true;
+    $('#harmonizacoes').hidden = true;
+    $('#colecao-banners').hidden = true;
+    $('#search-results').hidden = true;
+    $('#colecao-view').hidden = false;
+
+    $('#colecao-title').textContent = collection.title;
+    $('#colecao-intro').textContent = collection.intro;
+    $('#colecao-count').textContent = wines.length + ' rótulos';
+    $('#colecao-grid').innerHTML = wines.map(cardTemplate).join('');
+    applyStockToCards();
+  }
+
+  function routeCollection() {
+    var collection = currentCollection();
+    if (collection) {
+      resetFilterInputs();
+      showCollection(collection);
+      window.scrollTo(0, 0);
+      return;
+    }
+    var f = currentFilters();
+    if (!f.query && !f.country && !f.grape) showCatalogView();
+  }
+
+  function initCollections() {
+    renderBanners();
+
+    $('#colecao-view').addEventListener('click', function (event) {
+      if (event.target.closest('#colecao-back')) {
+        event.preventDefault();
+        window.location.hash = '';
+        return;
+      }
+      handleCatalogClick(event);
+    });
+
+    window.addEventListener('hashchange', routeCollection);
+    routeCollection();
+  }
+
   // ------------------------------------------------------------- pesquisa ---
   function currentFilters() {
     return {
@@ -374,7 +457,10 @@
     $('#tabs').hidden = true;
     $('#catalog').hidden = true;
     $('#harmonizacoes').hidden = true;
+    $('#colecao-banners').hidden = true;
+    $('#colecao-view').hidden = true;
     $('#search-results').hidden = false;
+    leaveCollectionHash();
 
     empty.hidden = matches.length > 0;
     count.textContent = matches.length ? matches.length + ' rótulo(s) encontrado(s)' : '';
@@ -386,7 +472,10 @@
     $('#tabs').hidden = false;
     $('#catalog').hidden = false;
     $('#harmonizacoes').hidden = false;
+    $('#colecao-banners').hidden = !$('#colecao-banners').children.length;
+    $('#colecao-view').hidden = true;
     $('#search-results').hidden = true;
+    leaveCollectionHash();
   }
 
   // Ponto único: busca por nome, país e uva se combinam (E). Sem nenhum filtro
@@ -405,10 +494,17 @@
     if (wasHidden) window.scrollTo(0, 0);
   }
 
-  function clearAllFilters() {
+  function resetFilterInputs() {
     $('#wine-search').value = '';
     $('#filter-country').value = '';
     $('#filter-grape').value = '';
+    $('#search-clear').hidden = true;
+    $('#filter-country').classList.remove('is-set');
+    $('#filter-grape').classList.remove('is-set');
+  }
+
+  function clearAllFilters() {
+    resetFilterInputs();
     applyFilters();
   }
 
@@ -1310,6 +1406,7 @@
     renderCatalog();
     initSearch();
     initHarmonization();
+    initCollections();
     initProductModal();
     initCart();
     initCheckout();

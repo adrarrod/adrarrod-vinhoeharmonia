@@ -157,6 +157,32 @@ O cliente nunca consegue comprar mais garrafas do que existem. Como funciona:
 Atenção: pedido em PIX que o cliente não pagar continua segurando as garrafas até
 você cancelá-lo no painel; o mesmo vale para pedido com cartão recusado.
 
+## Coleções com banner (ex.: Halloween)
+
+O banner no alto da home (antes das Harmonizações) e a tela de sugestões que ele
+abre vêm de `js/colecoes.js`. Clicar no banner abre `index.html#halloween`: a
+própria home passa a mostrar só os vinhos da coleção, com carrinho, estoque,
+popup e busca iguais aos da vitrine ("← Voltar à loja" ou o botão voltar do
+navegador retornam). O link `index.html#halloween` também pode ser compartilhado.
+
+Para criar uma coleção nova (Natal, Dia dos Namorados...):
+
+1. Coloque dois recortes do banner em `colecoes-img/`: um largo para o computador
+   (3:1, ex. 1600x533) e um mais fechado para o celular (2:1, ex. 960x480).
+2. Em `js/colecoes.js`, acrescente um objeto a `COLLECTIONS` com `slug` (letras
+   minúsculas, números e hífen — é o que aparece depois do `#`), `title`, `intro`,
+   `ctaText`, `bannerAlt`, `bannerDesktop`, `bannerMobile`, `wines` (os `slug` dos
+   vinhos, na ordem em que aparecem) e, se quiser, `until`.
+3. Rode `npm test`: ele confere se todo vinho existe no catálogo, se as imagens
+   existem e se nada sobrou na pasta.
+4. Incremente o `CACHE_NAME` em `sw.js`.
+
+**A coleção sai do ar sozinha.** `until` é o primeiro dia em que ela já NÃO
+aparece (a do Halloween tem `until: '2026-11-01'`, ou seja, some no dia 1º de
+novembro). Para estender, mude essa data; para deixá-la no ar sem prazo, apague a
+linha `until`. Se um vinho da coleção for tirado do catálogo, o `npm test` falha
+até você tirá-lo também de `wines`.
+
 ## Harmonizações (faixa da home e página de explicação)
 
 A faixa "Harmonizações" da home (antes da lista de vinhos) e a página

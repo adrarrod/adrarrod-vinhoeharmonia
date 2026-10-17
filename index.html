@@ -131,6 +131,8 @@
 
   <!-- ================================================================ main -->
   <main class="wrap">
+    <div class="banner-wrap" id="colecao-banners" hidden></div>
+
     <section class="hz-home" id="harmonizacoes" aria-labelledby="hz-title">
       <div class="category-head">
         <h2 id="hz-title">Harmonizações</h2>
@@ -156,6 +158,16 @@
       </p>
       <div class="grid" id="search-results-grid"></div>
     </div>
+
+    <section class="colecao-view" id="colecao-view" aria-labelledby="colecao-title" hidden>
+      <p><a class="btn-link colecao-back" href="#" id="colecao-back">&larr; Voltar à loja</a></p>
+      <div class="category-head">
+        <h2 id="colecao-title"></h2>
+        <span class="category-count" id="colecao-count"></span>
+      </div>
+      <p class="colecao-intro" id="colecao-intro"></p>
+      <div class="grid" id="colecao-grid"></div>
+    </section>
 
     <section class="about" id="sobre">
       <h2>Sobre a Vinho &amp; Harmonia</h2>
@@ -448,6 +460,7 @@
   <script src="js/catalog.js"></script>
   <script src="js/pricing.js"></script>
   <script src="js/harmonizacao.js"></script>
+  <script src="js/colecoes.js"></script>
   <script src="js/store.js"></script>
 </body>
 </html>
