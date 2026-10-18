@@ -10,6 +10,14 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const POSTS = [
     {
+      slug: 'priorat-espanha',
+      tag: 'Vinhos da Espanha',
+      title: 'Priorat: o tinto de xisto da Espanha',
+      summary: 'Priorat fica na Catalunha, no nordeste da Espanha, e é uma das duas regiões do país com a classificação mais alta, a DOCa, ao lado de Rioja. O segredo está no solo de xisto, chamado de llicorella, e nas vinhas velhas de Garnacha e Cariñena, plantadas em encostas íngremes, que dão poucas uvas e muito sabor. O resultado são tintos intensos, de corpo cheio e com notas minerais, ótimos com cordeiro, carnes grelhadas e queijos curados.',
+      image: 'blog-img/vinhos-do-priorat.svg',
+      imageAlt: 'Ilustração de encostas de xisto em terraços com fileiras de vinhedos ao pôr do sol e videiras velhas em primeiro plano'
+    },
+    {
       slug: 'vinhos-da-argentina',
       tag: 'Vinhos da Argentina',
       title: 'Argentina: Malbec e o frescor dos Andes',

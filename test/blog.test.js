@@ -11,7 +11,7 @@ test('Mini Blog lists the newest post first and keeps the earlier themes, in ord
   // Post novo entra no INÍCIO da lista (ver js/blog.js): a ordem dos antigos não muda.
   assert.deepEqual(
     Blog.POSTS.map((p) => p.slug),
-    ['vinhos-da-argentina', 'vinhos-do-brasil', 'harmonizacao-com-carnes', 'vinhos-de-portugal']
+    ['priorat-espanha', 'vinhos-da-argentina', 'vinhos-do-brasil', 'harmonizacao-com-carnes', 'vinhos-de-portugal']
   );
 });
 
