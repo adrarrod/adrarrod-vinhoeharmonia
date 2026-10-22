@@ -51,6 +51,65 @@
       <a class="btn btn-gold" id="melhor-envio-connect-link" href="/api/melhor-envio-connect" hidden>Conectar Melhor Envio</a>
     </section>
 
+    <!-- ========================================================== assinantes -->
+    <section class="fieldset-block admin-subscribers" id="admin-subscribers" hidden>
+      <div class="block-title">Assinantes</div>
+
+      <form id="sub-form" novalidate>
+        <div class="sub-grid">
+          <div class="field sub-span-2">
+            <label for="sub-name">Nome *</label>
+            <input id="sub-name" name="name" type="text" maxlength="120" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="sub-phone">Telefone *</label>
+            <input id="sub-phone" name="phone" type="tel" inputmode="numeric" placeholder="(11) 98765-4321" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="sub-email">E-mail</label>
+            <input id="sub-email" name="email" type="email" maxlength="254" autocomplete="off">
+          </div>
+          <div class="field sub-span-2">
+            <label for="sub-street">Endereço</label>
+            <input id="sub-street" name="street" type="text" maxlength="120" autocomplete="off">
+          </div>
+          <div class="field sub-half">
+            <label for="sub-complement">Complemento</label>
+            <input id="sub-complement" name="complement" type="text" maxlength="120" autocomplete="off">
+          </div>
+          <div class="field sub-half">
+            <label for="sub-number">Número</label>
+            <input id="sub-number" name="number" type="text" maxlength="20" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="sub-neighborhood">Bairro</label>
+            <input id="sub-neighborhood" name="neighborhood" type="text" maxlength="120" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="sub-city">Cidade</label>
+            <input id="sub-city" name="city" type="text" maxlength="120" autocomplete="off">
+          </div>
+          <div class="field sub-half">
+            <label for="sub-state">Estado</label>
+            <input id="sub-state" name="state" type="text" maxlength="2" placeholder="SP" autocomplete="off">
+          </div>
+          <div class="field sub-half">
+            <label for="sub-cep">CEP</label>
+            <input id="sub-cep" name="cep" type="text" inputmode="numeric" maxlength="9" placeholder="01310-100" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="form-errors" id="sub-errors" hidden></div>
+        <p class="orders-status" id="sub-status" hidden></p>
+
+        <button class="btn btn-gold btn-block" type="submit" id="sub-submit" style="margin-top:12px">Cadastrar assinante</button>
+      </form>
+
+      <h3 class="sub-list-title">Cadastrados <span id="sub-count"></span></h3>
+      <input type="search" id="sub-filter" class="search-input stock-filter" placeholder="Filtrar por nome, telefone ou e-mail…" aria-label="Filtrar assinantes" autocomplete="off">
+      <div class="sub-list" id="sub-list"></div>
+    </section>
+
     <!-- ============================================================== estoque -->
     <section class="fieldset-block admin-stock" id="admin-stock" hidden>
       <div class="block-title">Estoque</div>

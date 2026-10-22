@@ -1122,6 +1122,32 @@ main { padding-bottom: 120px; }
 .order-address-full { grid-column: 1 / -1; }
 .order-cancel { margin: 0 0 10px; padding: 6px 14px; font-size: .8rem; }
 
+/* assinantes no painel admin */
+.admin-subscribers { margin-bottom: 18px; }
+.sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.sub-span-2 { grid-column: 1 / -1; }
+/* Celular: um campo por linha, menos os curtos (complemento/número e estado/CEP),
+   que ficam lado a lado para o formulário não ficar tão comprido. */
+@media (max-width: 480px) {
+  .sub-grid .field { grid-column: 1 / -1; }
+  .sub-grid .field.sub-half { grid-column: auto; }
+}
+.sub-list-title { font-family: var(--font-body); font-size: .8rem; text-transform: uppercase; letter-spacing: 1.2px; color: var(--gold); margin: 20px 0 6px; }
+.sub-list-title span { color: var(--silver); letter-spacing: 0; text-transform: none; }
+.sub-list { display: grid; gap: 8px; max-height: 480px; overflow-y: auto; }
+.sub-card {
+  background: var(--surface-2);
+  border: 1px solid rgba(184, 184, 192, .12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: .86rem;
+}
+.sub-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sub-name { font-weight: 700; }
+.sub-line { color: var(--muted); margin: 3px 0 0; word-break: break-word; }
+.sub-date { font-size: .72rem; color: var(--silver); margin: 6px 0 0; }
+.sub-delete { padding: 4px 12px; font-size: .76rem; flex: 0 0 auto; }
+
 /* estoque no painel admin */
 .admin-stock { margin-bottom: 18px; }
 .stock-filter { margin: 8px 0 10px; }

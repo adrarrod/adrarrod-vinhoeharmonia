@@ -16,6 +16,15 @@
   const ordersStatus = document.getElementById('orders-status');
   const ordersList = document.getElementById('orders-list');
 
+  const subscribersSection = document.getElementById('admin-subscribers');
+  const subForm = document.getElementById('sub-form');
+  const subErrors = document.getElementById('sub-errors');
+  const subStatus = document.getElementById('sub-status');
+  const subSubmit = document.getElementById('sub-submit');
+  const subList = document.getElementById('sub-list');
+  const subCount = document.getElementById('sub-count');
+  const subFilter = document.getElementById('sub-filter');
+
   const stockSection = document.getElementById('admin-stock');
   const stockStatus = document.getElementById('stock-status');
   const stockList = document.getElementById('stock-list');
@@ -57,6 +66,7 @@
     loginSection.hidden = false;
     ordersSection.hidden = true;
     shippingSection.hidden = true;
+    subscribersSection.hidden = true;
     stockSection.hidden = true;
   }
 
@@ -64,6 +74,7 @@
     loginSection.hidden = true;
     ordersSection.hidden = false;
     shippingSection.hidden = false;
+    subscribersSection.hidden = false;
     stockSection.hidden = false;
   }
 
@@ -215,6 +226,7 @@
       setOrdersStatus('', false);
       renderOrders(orders);
       loadStock();
+      loadSubscribers();
       if (!showMelhorEnvioNotice()) {
         loadMelhorEnvioStatus();
       }
@@ -224,6 +236,170 @@
       setOrdersStatus('Falha de conexão ao buscar pedidos. Verifique sua internet e tente novamente.', true);
     }
   }
+
+  // ---------------------------------------------------------- assinantes ---
+  const SUB_FIELD_LABELS = {
+    name: 'Nome', phone: 'Telefone (DDD + número)', email: 'E-mail', street: 'Endereço',
+    complement: 'Complemento', number: 'Número', neighborhood: 'Bairro', city: 'Cidade',
+    state: 'Estado (2 letras, ex.: SP)', cep: 'CEP (8 números)'
+  };
+  const SUB_FIELD_IDS = {
+    name: 'sub-name', phone: 'sub-phone', email: 'sub-email', street: 'sub-street',
+    complement: 'sub-complement', number: 'sub-number', neighborhood: 'sub-neighborhood',
+    city: 'sub-city', state: 'sub-state', cep: 'sub-cep'
+  };
+  let subscribers = [];
+
+  function formatPhone(digits) {
+    const d = String(digits || '').replace(/\D/g, '');
+    if (d.length === 11) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+    if (d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return d;
+  }
+
+  function formatCep(digits) {
+    const d = String(digits || '').replace(/\D/g, '');
+    return d.length === 8 ? d.slice(0, 5) + '-' + d.slice(5) : d;
+  }
+
+  // Máscaras enquanto digita (mesma ideia do checkout da loja).
+  function maskPhone(value) {
+    const d = value.replace(/\D/g, '').slice(0, 11);
+    if (d.length <= 2) return d;
+    if (d.length <= 6) return '(' + d.slice(0, 2) + ') ' + d.slice(2);
+    if (d.length <= 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+  }
+
+  function maskCep(value) {
+    const d = value.replace(/\D/g, '').slice(0, 8);
+    return d.length > 5 ? d.slice(0, 5) + '-' + d.slice(5) : d;
+  }
+
+  function setSubStatus(message, isError) {
+    subStatus.hidden = !message;
+    subStatus.textContent = message || '';
+    subStatus.classList.toggle('card-msg', !!isError);
+  }
+
+  function showSubErrors(fields) {
+    subForm.querySelectorAll('.field').forEach((f) => f.classList.remove('has-error'));
+    if (!fields || !fields.length) { subErrors.hidden = true; subErrors.innerHTML = ''; return; }
+    subErrors.innerHTML = '<strong>Confira estes campos antes de cadastrar:</strong><ul>' +
+      fields.map((f) => '<li>' + escapeHtml(SUB_FIELD_LABELS[f] || f) + '</li>').join('') + '</ul>';
+    subErrors.hidden = false;
+    fields.forEach((f) => {
+      const input = document.getElementById(SUB_FIELD_IDS[f]);
+      if (input && input.closest('.field')) input.closest('.field').classList.add('has-error');
+    });
+  }
+
+  function subscriberAddress(s) {
+    const line1 = [s.street, s.number].filter(Boolean).join(', ') + (s.complement ? ' — ' + s.complement : '');
+    const cityState = [s.city, s.state].filter(Boolean).join('/');
+    const parts = [line1.trim(), s.neighborhood, cityState, s.cep ? 'CEP ' + formatCep(s.cep) : ''].filter(Boolean);
+    return parts.join(' · ');
+  }
+
+  function renderSubscriber(s) {
+    const contact = [formatPhone(s.phone), s.email].filter(Boolean).map(escapeHtml).join(' · ');
+    const address = subscriberAddress(s);
+    return (
+      '<article class="sub-card">' +
+        '<div class="sub-card-head">' +
+          '<span class="sub-name">' + escapeHtml(s.name) + '</span>' +
+          '<button class="btn btn-ghost sub-delete" type="button" data-delete-sub="' + escapeHtml(s.id) + '">Excluir</button>' +
+        '</div>' +
+        '<p class="sub-line">' + contact + '</p>' +
+        (address ? '<p class="sub-line">' + escapeHtml(address) + '</p>' : '') +
+        '<p class="sub-date">Cadastrado em ' + formatDate(s.createdAt) + '</p>' +
+      '</article>'
+    );
+  }
+
+  function renderSubscribers() {
+    const q = subFilter.value.trim().toLowerCase();
+    const digits = q.replace(/\D/g, '');
+    const shown = !q ? subscribers : subscribers.filter((s) =>
+      s.name.toLowerCase().includes(q) ||
+      (s.email || '').toLowerCase().includes(q) ||
+      (digits && s.phone.includes(digits)));
+    subCount.textContent = '(' + (q ? shown.length + ' de ' + subscribers.length : subscribers.length) + ')';
+    subList.innerHTML = shown.length
+      ? shown.map(renderSubscriber).join('')
+      : '<p class="orders-empty">' + (subscribers.length ? 'Nenhum assinante encontrado.' : 'Nenhum assinante cadastrado ainda.') + '</p>';
+  }
+
+  async function loadSubscribers() {
+    try {
+      const res = await fetch('/api/subscribers', { credentials: 'same-origin', cache: 'no-store' });
+      if (res.status === 401) { showLogin(); return; }
+      if (!res.ok) throw new Error('http ' + res.status);
+      subscribers = (await res.json()).subscribers || [];
+      renderSubscribers();
+    } catch (err) {
+      subCount.textContent = '';
+      subList.innerHTML = '<p class="orders-empty">Não foi possível carregar os assinantes agora.</p>';
+    }
+  }
+
+  async function submitSubscriber(event) {
+    event.preventDefault();
+    setSubStatus('', false);
+    showSubErrors([]);
+    const payload = {};
+    Object.keys(SUB_FIELD_IDS).forEach((field) => { payload[field] = document.getElementById(SUB_FIELD_IDS[field]).value; });
+
+    subSubmit.disabled = true;
+    try {
+      const res = await fetch('/api/subscribers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload)
+      });
+      if (res.status === 401) { showLogin(); return; }
+      if (res.status === 400) {
+        const data = await res.json().catch(() => ({}));
+        showSubErrors(Array.isArray(data.errors) ? data.errors : []);
+        return;
+      }
+      if (!res.ok) throw new Error('http ' + res.status);
+      const data = await res.json();
+      subForm.reset();
+      setSubStatus('Assinante ' + data.subscriber.name + ' cadastrado.', false);
+      await loadSubscribers();
+      document.getElementById('sub-name').focus();
+    } catch (err) {
+      setSubStatus('Não foi possível cadastrar agora. Tente de novo.', true);
+    } finally {
+      subSubmit.disabled = false;
+    }
+  }
+
+  async function deleteSubscriber(id) {
+    const sub = subscribers.find((s) => String(s.id) === String(id));
+    if (!window.confirm('Excluir o cadastro de ' + (sub ? sub.name : 'este assinante') + '? Isso não pode ser desfeito.')) return;
+    try {
+      const res = await fetch('/api/subscribers?id=' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' });
+      if (res.status === 401) { showLogin(); return; }
+      if (!res.ok && res.status !== 404) throw new Error('http ' + res.status);
+      setSubStatus('', false);
+      await loadSubscribers();
+    } catch (err) {
+      setSubStatus('Não foi possível excluir agora. Tente de novo.', true);
+    }
+  }
+
+  subForm.addEventListener('submit', submitSubscriber);
+  document.getElementById('sub-phone').addEventListener('input', function () { this.value = maskPhone(this.value); });
+  document.getElementById('sub-cep').addEventListener('input', function () { this.value = maskCep(this.value); });
+  document.getElementById('sub-state').addEventListener('input', function () { this.value = this.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 2); });
+  subFilter.addEventListener('input', renderSubscribers);
+  subList.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-delete-sub]');
+    if (btn) deleteSubscriber(btn.dataset.deleteSub);
+  });
 
   // ------------------------------------------------------------- estoque ---
   let stockMap = {};

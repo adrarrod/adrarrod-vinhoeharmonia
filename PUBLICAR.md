@@ -157,6 +157,21 @@ O cliente nunca consegue comprar mais garrafas do que existem. Como funciona:
 Atenção: pedido em PIX que o cliente não pagar continua segurando as garrafas até
 você cancelá-lo no painel; o mesmo vale para pedido com cartão recusado.
 
+## Assinantes
+
+Cadastro de assinantes, **só para uso interno** (não existe formulário público).
+
+- **Onde:** em `/admin.html`, seção **Assinantes** (depois de entrar com a senha).
+  Preencha o formulário e clique em *Cadastrar assinante*.
+- **Campos:** Nome e Telefone são obrigatórios. E-mail, Endereço, Complemento,
+  Número, Bairro, Cidade, Estado (sigla, ex.: SP) e CEP são opcionais.
+- **Banco:** os dados ficam na tabela `subscribers`, criada sozinha no primeiro
+  uso. Telefone e CEP são guardados só com números e aparecem formatados na tela.
+- **Lista:** os mais novos primeiro, com filtro por nome, telefone ou e-mail.
+  Cada card tem o botão **Excluir** (pede confirmação).
+- **Ainda não existe:** editar um assinante (por enquanto exclua e cadastre de
+  novo), aviso de telefone repetido e cadastro pelo site pelo próprio cliente.
+
 ## Coleções com banner (ex.: Halloween)
 
 O banner no alto da home (antes das Harmonizações) e a tela de sugestões que ele

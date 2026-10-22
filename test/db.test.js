@@ -141,3 +141,49 @@ test('cancelOrder marks the order cancelled once and returns its items; null if 
   const again = fakeExecute([{ rows: [] }]);
   assert.equal(await db.cancelOrder(again, 4), null);
 });
+
+// --- assinantes ---
+
+test('ensureSubscribersSchema creates the subscribers table with name and phone required', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.ensureSubscribersSchema(execute);
+  assert.equal(execute.calls.length, 1);
+  assert.match(execute.calls[0].text, /CREATE TABLE IF NOT EXISTS subscribers/);
+  assert.match(execute.calls[0].text, /name TEXT NOT NULL/);
+  assert.match(execute.calls[0].text, /phone TEXT NOT NULL/);
+});
+
+test('insertSubscriber stores every field as a parameter and returns the new row', async () => {
+  const value = {
+    name: 'Maria', phone: '11987654321', email: 'm@x.com', street: 'Rua A', complement: 'Ap 4',
+    number: '10', neighborhood: 'Centro', city: 'SP', state: 'SP', cep: '01310100'
+  };
+  const execute = fakeExecute([{ rows: [{ id: 5, name: 'Maria' }] }]);
+  const row = await db.insertSubscriber(execute, value);
+  assert.deepEqual(row, { id: 5, name: 'Maria' });
+  assert.match(execute.calls[0].text, /INSERT INTO subscribers/);
+  assert.match(execute.calls[0].text, /RETURNING \*/);
+  assert.deepEqual(execute.calls[0].params, ['Maria', '11987654321', 'm@x.com', 'Rua A', 'Ap 4', '10', 'Centro', 'SP', 'SP', '01310100']);
+});
+
+test('insertSubscriber passes null for the optional fields left blank', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 1 }] }]);
+  await db.insertSubscriber(execute, { name: 'A', phone: '1133334444', email: null, street: null, complement: null, number: null, neighborhood: null, city: null, state: null, cep: null });
+  assert.deepEqual(execute.calls[0].params, ['A', '1133334444', null, null, null, null, null, null, null, null]);
+});
+
+test('listSubscribers returns the newest first', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 2 }, { id: 1 }] }]);
+  assert.deepEqual(await db.listSubscribers(execute), [{ id: 2 }, { id: 1 }]);
+  assert.match(execute.calls[0].text, /ORDER BY created_at DESC, id DESC/);
+});
+
+test('deleteSubscriber removes by id and reports whether a row was deleted', async () => {
+  const done = fakeExecute([{ rows: [{ id: 3 }] }]);
+  assert.equal(await db.deleteSubscriber(done, 3), true);
+  assert.match(done.calls[0].text, /DELETE FROM subscribers WHERE id = \$1/);
+  assert.deepEqual(done.calls[0].params, [3]);
+
+  const none = fakeExecute([{ rows: [] }]);
+  assert.equal(await db.deleteSubscriber(none, 999), false);
+});
