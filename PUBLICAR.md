@@ -184,17 +184,18 @@ Cadastro de assinantes (feito por você no painel) e a **Área do assinante**
 - **Login:** celular (com ou sem máscara) **ou** e-mail, mais a senha.
 - **Senha inicial:** `123mudar`, para todo assinante (os já cadastrados também).
   Ela não é gravada no banco: assinante sem senha própria = senha inicial.
-- **Trocar a senha:** o assinante troca quando quiser, na própria página (de 6 a
-  100 caracteres, diferente da inicial). Enquanto usar a inicial, a página mostra
-  um aviso para trocar. Senhas próprias ficam no banco só embaralhadas (scrypt).
+- **Trocar a senha:** o assinante troca quando quiser, na própria página: a seção
+  **Senha** fica fechada, só com o botão *Alterar senha*; ao clicar, os campos
+  abrem (de 6 a 100 caracteres, diferente da inicial). Enquanto usar a inicial, a
+  página mostra um aviso para trocar. Senhas próprias ficam no banco só embaralhadas (scrypt).
 - **Esqueci a senha:** não há envio de e-mail. O assinante fala com você e você
   clica em **Redefinir senha** no card dele: volta para `123mudar` e as sessões
   abertas dele são derrubadas.
 - **Segurança:** 5 senhas erradas seguidas bloqueiam aquele acesso por 15 minutos.
   A sessão dura 7 dias e usa a mesma variável `ADMIN_SESSION_SECRET` do painel
   (nenhuma variável nova). Trocar ou redefinir a senha encerra as outras sessões.
-- **Conteúdo:** além do questionário (abaixo), a página mostra "Em breve"; as
-  outras informações exclusivas entram em uma próxima etapa.
+- **Conteúdo:** o cartão do questionário e os **Vinhos do clube** (abaixo). Novas
+  informações exclusivas entram em próximas etapas.
 - **Limite da Vercel:** o plano gratuito aceita 12 funções em `api/`, e agora há
   exatamente 12. Para criar mais uma API será preciso juntar duas existentes
   (como foi feito com `api/subscriber-area.js`, que atende login, sessão e senha).
@@ -235,6 +236,30 @@ Questionário de perfil de paladar, com 12 perguntas em 4 etapas.
   painel depois). Não há recomendação automática nem IA.
 - **Limite da Vercel:** continua em 12 funções em `api/`: o questionário usa as
   APIs que já existiam (`api/subscriber-area.js` e `api/subscribers.js`).
+
+## Vinhos do clube (o que cada assinante recebe, por mês)
+
+- **Cadastrar (painel `/admin.html`, seção Assinantes):** no cartão do assinante,
+  botão **Vinhos do clube**. Escolha o **mês de entrega**, procure o vinho na
+  lista (ela mostra a quantidade em estoque de cada um; "sem estoque" aparece
+  quando é 0) e clique em *Adicionar*. O mesmo vinho não entra duas vezes no mesmo
+  mês do mesmo assinante. *Remover* tira um vinho cadastrado por engano.
+- **Estoque:** o cadastro **não altera** as quantidades. Elas continuam sendo
+  ajustadas por você na seção Estoque.
+- **O que o assinante vê:** na área dele, **Meus vinhos do clube**, agrupados por
+  mês, no formato da vitrine (foto, nome, tipo, país, uva, teor alcoólico,
+  harmonizações e descrição), **sem preço e sem botão de compra**.
+- **Quando aparece:** o vinho só aparece para o assinante **a partir do primeiro
+  dia do mês** de entrega (horário de São Paulo). Meses futuros ficam em segredo;
+  no painel eles aparecem marcados "ainda não liberado para o assinante".
+- **Avaliação:** de 1 a 5 estrelas, e o assinante pode mudar a nota depois. Só dá
+  para avaliar vinhos já liberados. No painel, a nota de cada vinho aparece ao
+  lado dele.
+- **Banco:** tabela `club_wines`, criada sozinha. Apagar um assinante apaga os
+  vinhos dele. Um vinho que saia do catálogo continua aparecendo no painel (pelo
+  código), mas deixa de aparecer para o assinante.
+- **Limite da Vercel:** continua em 12 funções em `api/` (usa `api/subscribers.js`
+  e `api/subscriber-area.js`).
 
 ## Coleções com banner (ex.: Halloween)
 

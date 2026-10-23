@@ -342,3 +342,58 @@ test('updateSubscriberEmail saves the e-mail of one subscriber and says whether 
   assert.deepEqual(done.calls[0].params, [7, 'maria@x.com']);
   assert.equal(await db.updateSubscriberEmail(fakeExecute([{ rows: [] }]), 99, 'a@b.co'), false);
 });
+
+// --- vinhos do clube ---
+
+test('ensureClubWinesSchema creates the table tied to the subscriber (deleted together), with one row per wine and month and a 1-5 rating', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.ensureClubWinesSchema(execute);
+  const sql = execute.calls[0].text;
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS club_wines/);
+  assert.match(sql, /subscriber_id INTEGER NOT NULL REFERENCES subscribers\(id\) ON DELETE CASCADE/);
+  assert.match(sql, /wine_slug TEXT NOT NULL/);
+  assert.match(sql, /month TEXT NOT NULL/);
+  assert.match(sql, /rating SMALLINT CHECK \(rating BETWEEN 1 AND 5\)/);
+  assert.match(sql, /UNIQUE \(subscriber_id, wine_slug, month\)/);
+});
+
+test('insertClubWine adds the wine for that subscriber and month, and returns null when it was already registered', async () => {
+  const added = fakeExecute([{ rows: [{ id: 4 }] }]);
+  assert.deepEqual(await db.insertClubWine(added, 7, 'amo-te-tinto', '2026-11'), { id: 4 });
+  assert.match(added.calls[0].text, /INSERT INTO club_wines/);
+  assert.match(added.calls[0].text, /ON CONFLICT \(subscriber_id, wine_slug, month\) DO NOTHING/);
+  assert.match(added.calls[0].text, /RETURNING \*/);
+  assert.deepEqual(added.calls[0].params, [7, 'amo-te-tinto', '2026-11']);
+  assert.equal(await db.insertClubWine(fakeExecute([{ rows: [] }]), 7, 'amo-te-tinto', '2026-11'), null);
+});
+
+test('listClubWines gives one subscriber\'s wines, newest month first, and can stop at a month (what the subscriber may see)', async () => {
+  const all = fakeExecute([{ rows: [{ id: 2 }, { id: 1 }] }]);
+  assert.deepEqual(await db.listClubWines(all, 7), [{ id: 2 }, { id: 1 }]);
+  assert.match(all.calls[0].text, /WHERE subscriber_id = \$1 ORDER BY month DESC, id DESC/);
+  assert.deepEqual(all.calls[0].params, [7]);
+
+  const upTo = fakeExecute([{ rows: [{ id: 1 }] }]);
+  await db.listClubWines(upTo, 7, '2026-10');
+  assert.match(upTo.calls[0].text, /WHERE subscriber_id = \$1 AND month <= \$2 ORDER BY month DESC, id DESC/);
+  assert.deepEqual(upTo.calls[0].params, [7, '2026-10']);
+});
+
+test('deleteClubWine removes a wine only if it belongs to that subscriber', async () => {
+  const done = fakeExecute([{ rows: [{ id: 5 }] }]);
+  assert.equal(await db.deleteClubWine(done, 7, 5), true);
+  assert.match(done.calls[0].text, /DELETE FROM club_wines WHERE id = \$1 AND subscriber_id = \$2/);
+  assert.deepEqual(done.calls[0].params, [5, 7]);
+  assert.equal(await db.deleteClubWine(fakeExecute([{ rows: [] }]), 8, 5), false);
+});
+
+test('rateClubWine saves the rating only for the subscriber\'s own wine and only once its month has started', async () => {
+  const done = fakeExecute([{ rows: [{ id: 5, rating: 4 }] }]);
+  assert.deepEqual(await db.rateClubWine(done, 7, 5, 4, '2026-10'), { id: 5, rating: 4 });
+  const sql = done.calls[0].text;
+  assert.match(sql, /UPDATE club_wines SET rating = \$3, rated_at = now\(\)/);
+  assert.match(sql, /WHERE id = \$1 AND subscriber_id = \$2 AND month <= \$4/);
+  assert.match(sql, /RETURNING \*/);
+  assert.deepEqual(done.calls[0].params, [5, 7, 4, '2026-10']);
+  assert.equal(await db.rateClubWine(fakeExecute([{ rows: [] }]), 7, 5, 4, '2026-10'), null);
+});

@@ -398,6 +398,136 @@
       ' <button class="btn btn-ghost sub-answers-btn" type="button" data-answers-sub="' + escapeHtml(s.id) + '">Ver respostas</button></p>';
   }
 
+  // ---- vinhos do clube (escolhidos do estoque, com o mês de entrega) --------
+  const clubBySubscriber = {}; // id do assinante -> lista de vinhos já cadastrados
+
+  function stockLabel(wine) {
+    const qty = stockMap[wine.slug];
+    if (typeof qty !== 'number') return wine.name;
+    return wine.name + ' — ' + (qty > 0 ? qty + ' em estoque' : 'sem estoque');
+  }
+
+  function clubOptionsHtml(query) {
+    const wines = (query ? window.Catalog.searchByName(query) : window.Catalog.MENU.slice())
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    if (!wines.length) return '<option value="" disabled>Nenhum vinho encontrado</option>';
+    return wines.map((w) => '<option value="' + escapeHtml(w.slug) + '">' + escapeHtml(stockLabel(w)) + '</option>').join('');
+  }
+
+  function clubItemHtml(w) {
+    const rating = w.rating
+      ? '<span class="club-item-stars">' + '★'.repeat(w.rating) + '☆'.repeat(5 - w.rating) + '</span> ' + w.rating + ' de 5'
+      : 'Sem avaliação';
+    const future = w.month > window.Club.currentMonth() ? '<span class="club-item-future">ainda não liberado para o assinante</span>' : '';
+    return (
+      '<div class="club-item">' +
+        '<div class="club-item-main">' +
+          '<span class="club-item-month">' + escapeHtml(window.Club.monthLabel(w.month)) + '</span>' +
+          '<span class="club-item-name">' + escapeHtml(w.name) + '</span>' +
+          '<span class="club-item-rating">' + rating + '</span>' + future +
+        '</div>' +
+        '<button class="btn btn-ghost club-remove" type="button" data-club-remove="' + escapeHtml(w.id) + '">Remover</button>' +
+      '</div>'
+    );
+  }
+
+  function renderClubPanel(box, id) {
+    const wines = clubBySubscriber[id] || [];
+    const list = wines.length
+      ? wines.map(clubItemHtml).join('')
+      : '<p class="sub-line">Nenhum vinho cadastrado para este assinante ainda.</p>';
+    const prev = box.querySelector('.club-form');
+    if (prev) {
+      // Só atualiza a lista: mantém o que já foi digitado/escolhido no formulário.
+      box.querySelector('.club-list').innerHTML = list;
+      return;
+    }
+    box.innerHTML =
+      '<div class="club-form">' +
+        '<div class="field"><label>Mês de entrega</label>' +
+          '<input type="month" class="club-month" value="' + escapeHtml(window.Club.currentMonth()) + '" aria-label="Mês de entrega"></div>' +
+        '<div class="field"><label>Vinho (lista do estoque)</label>' +
+          '<input type="search" class="club-search" placeholder="Buscar vinho pelo nome…" aria-label="Buscar vinho pelo nome" autocomplete="off">' +
+          '<select class="club-select" size="6" aria-label="Vinho do estoque">' + clubOptionsHtml('') + '</select></div>' +
+        '<button class="btn btn-gold club-add" type="button">Adicionar</button>' +
+        '<p class="orders-status club-msg" hidden></p>' +
+      '</div>' +
+      '<div class="club-list">' + list + '</div>';
+  }
+
+  function setClubMessage(box, message, isError) {
+    const el = box.querySelector('.club-msg');
+    if (!el) return;
+    el.hidden = !message;
+    el.textContent = message || '';
+    el.classList.toggle('card-msg', !!isError);
+  }
+
+  async function toggleClubPanel(id, button) {
+    const box = subList.querySelector('[data-club-for="' + id + '"]');
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; button.textContent = 'Vinhos do clube'; return; }
+    box.hidden = false;
+    button.textContent = 'Fechar vinhos do clube';
+    if (clubBySubscriber[id]) { renderClubPanel(box, id); return; }
+    box.textContent = 'Carregando…';
+    try {
+      const res = await fetch('/api/subscribers?view=wines&id=' + encodeURIComponent(id), { credentials: 'same-origin', cache: 'no-store' });
+      if (res.status === 401) { showLogin(); return; }
+      if (!res.ok) throw new Error('http ' + res.status);
+      clubBySubscriber[id] = (await res.json()).wines || [];
+      box.innerHTML = '';
+      renderClubPanel(box, id);
+    } catch (err) {
+      box.textContent = 'Não foi possível carregar os vinhos agora.';
+    }
+  }
+
+  async function addClubWine(id, box) {
+    const slug = box.querySelector('.club-select').value;
+    const month = box.querySelector('.club-month').value;
+    if (!slug) { setClubMessage(box, 'Escolha um vinho da lista.', true); return; }
+    if (!window.Club.isValidMonth(month)) { setClubMessage(box, 'Informe o mês de entrega.', true); return; }
+    const button = box.querySelector('.club-add');
+    button.disabled = true;
+    try {
+      const res = await fetch('/api/subscribers?action=add-wine&id=' + encodeURIComponent(id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ slug, month })
+      });
+      if (res.status === 401) { showLogin(); return; }
+      if (res.status === 409) { setClubMessage(box, 'Este vinho já está cadastrado neste mês para este assinante.', true); return; }
+      if (res.status === 404) { setClubMessage(box, 'Este assinante não existe mais.', true); return; }
+      if (res.status === 400) { setClubMessage(box, 'Confira o vinho e o mês escolhidos.', true); return; }
+      if (!res.ok) throw new Error('http ' + res.status);
+      const wine = (await res.json()).wine;
+      clubBySubscriber[id] = (clubBySubscriber[id] || []).concat(wine).sort((a, b) => (a.month < b.month ? 1 : a.month > b.month ? -1 : b.id - a.id));
+      setClubMessage(box, wine.name + ' cadastrado para ' + window.Club.monthLabel(wine.month) + '.', false);
+      renderClubPanel(box, id);
+    } catch (err) {
+      setClubMessage(box, 'Não foi possível cadastrar agora. Tente de novo.', true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function removeClubWine(id, wineId, box) {
+    const wine = (clubBySubscriber[id] || []).find((w) => String(w.id) === String(wineId));
+    if (!window.confirm('Remover ' + (wine ? wine.name + ' (' + window.Club.monthLabel(wine.month) + ')' : 'este vinho') + ' do assinante?')) return;
+    try {
+      const res = await fetch('/api/subscribers?action=remove-wine&id=' + encodeURIComponent(id) + '&wine=' + encodeURIComponent(wineId), { method: 'POST', credentials: 'same-origin' });
+      if (res.status === 401) { showLogin(); return; }
+      if (!res.ok && res.status !== 404) throw new Error('http ' + res.status);
+      clubBySubscriber[id] = (clubBySubscriber[id] || []).filter((w) => String(w.id) !== String(wineId));
+      setClubMessage(box, '', false);
+      renderClubPanel(box, id);
+    } catch (err) {
+      setClubMessage(box, 'Não foi possível remover agora. Tente de novo.', true);
+    }
+  }
+
   function renderSubscriber(s) {
     const contact = [formatPhone(s.phone), s.email].filter(Boolean).map(escapeHtml).join(' · ');
     const address = subscriberAddress(s);
@@ -416,6 +546,8 @@
         (address ? '<p class="sub-line">' + escapeHtml(address) + '</p>' : '') +
         '<p class="sub-date">Cadastrado em ' + formatDate(s.createdAt) + '</p>' +
         '<div class="sub-answers" data-answers-for="' + escapeHtml(s.id) + '" hidden></div>' +
+        '<p class="sub-line"><button class="btn btn-ghost sub-answers-btn" type="button" data-club-sub="' + escapeHtml(s.id) + '">Vinhos do clube</button></p>' +
+        '<div class="sub-club" data-club-for="' + escapeHtml(s.id) + '" hidden></div>' +
       '</article>'
     );
   }
@@ -539,10 +671,29 @@
   document.getElementById('sub-cep').addEventListener('input', function () { this.value = maskCep(this.value); });
   document.getElementById('sub-state').addEventListener('input', function () { this.value = this.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 2); });
   subFilter.addEventListener('input', renderSubscribers);
+  subList.addEventListener('input', (event) => {
+    if (!event.target.classList.contains('club-search')) return;
+    const select = event.target.closest('.club-form').querySelector('.club-select');
+    select.innerHTML = clubOptionsHtml(event.target.value.trim());
+  });
   subCancel.addEventListener('click', () => { setSubStatus('', false); stopEditing(); });
   subList.addEventListener('click', (event) => {
     const edit = event.target.closest('[data-edit-sub]');
     if (edit) { startEditing(edit.dataset.editSub); return; }
+    const club = event.target.closest('[data-club-sub]');
+    if (club) { toggleClubPanel(club.dataset.clubSub, club); return; }
+    const clubAdd = event.target.closest('.club-add');
+    if (clubAdd) {
+      const box = clubAdd.closest('[data-club-for]');
+      addClubWine(box.dataset.clubFor, box);
+      return;
+    }
+    const clubRemove = event.target.closest('[data-club-remove]');
+    if (clubRemove) {
+      const box = clubRemove.closest('[data-club-for]');
+      removeClubWine(box.dataset.clubFor, clubRemove.dataset.clubRemove, box);
+      return;
+    }
     const answers = event.target.closest('[data-answers-sub]');
     if (answers) { toggleSubscriberAnswers(answers.dataset.answersSub, answers); return; }
     const reset = event.target.closest('[data-reset-sub]');
