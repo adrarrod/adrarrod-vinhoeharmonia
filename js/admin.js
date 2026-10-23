@@ -297,6 +297,18 @@
     });
   }
 
+  // Celular e e-mail são o login do assinante: não podem se repetir.
+  function showSubDuplicate(field) {
+    showSubErrors([]);
+    const isEmail = field === 'email';
+    subErrors.textContent = isEmail
+      ? 'Este e-mail já está cadastrado em outro assinante.'
+      : 'Este celular já está cadastrado em outro assinante.';
+    subErrors.hidden = false;
+    const input = document.getElementById(isEmail ? 'sub-email' : 'sub-phone');
+    if (input && input.closest('.field')) input.closest('.field').classList.add('has-error');
+  }
+
   function subscriberAddress(s) {
     const line1 = [s.street, s.number].filter(Boolean).join(', ') + (s.complement ? ' — ' + s.complement : '');
     const cityState = [s.city, s.state].filter(Boolean).join('/');
@@ -344,6 +356,7 @@
           '<span class="sub-name">' + escapeHtml(s.name) + '</span>' +
           '<span class="sub-actions">' +
             '<button class="btn btn-ghost sub-edit" type="button" data-edit-sub="' + escapeHtml(s.id) + '">Editar</button>' +
+            '<button class="btn btn-ghost sub-reset" type="button" data-reset-sub="' + escapeHtml(s.id) + '">Redefinir senha</button>' +
             '<button class="btn btn-ghost sub-delete" type="button" data-delete-sub="' + escapeHtml(s.id) + '">Excluir</button>' +
           '</span>' +
         '</div>' +
@@ -402,6 +415,11 @@
         showSubErrors(Array.isArray(data.errors) ? data.errors : []);
         return;
       }
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({}));
+        showSubDuplicate(data.field);
+        return;
+      }
       if (res.status === 404 && wasEditing) {
         stopEditing();
         setSubStatus('Este assinante não existe mais (foi excluído). Nada foi alterado.', true);
@@ -436,6 +454,22 @@
     }
   }
 
+  // "Esqueci minha senha": volta o assinante para a senha inicial.
+  async function resetSubscriberPassword(id) {
+    const sub = subscribers.find((s) => String(s.id) === String(id));
+    const who = sub ? sub.name : 'este assinante';
+    if (!window.confirm('Redefinir a senha de ' + who + ' para a senha inicial (123mudar)? Se a pessoa estiver conectada, será desconectada.')) return;
+    try {
+      const res = await fetch('/api/subscribers?action=reset-password&id=' + encodeURIComponent(id), { method: 'POST', credentials: 'same-origin' });
+      if (res.status === 401) { showLogin(); return; }
+      if (res.status === 404) { setSubStatus('Este assinante não existe mais.', true); await loadSubscribers(); return; }
+      if (!res.ok) throw new Error('http ' + res.status);
+      setSubStatus('Senha de ' + who + ' redefinida para a senha inicial (123mudar).', false);
+    } catch (err) {
+      setSubStatus('Não foi possível redefinir a senha agora. Tente de novo.', true);
+    }
+  }
+
   subForm.addEventListener('submit', submitSubscriber);
   document.getElementById('sub-phone').addEventListener('input', function () { this.value = maskPhone(this.value); });
   document.getElementById('sub-cep').addEventListener('input', function () { this.value = maskCep(this.value); });
@@ -445,6 +479,8 @@
   subList.addEventListener('click', (event) => {
     const edit = event.target.closest('[data-edit-sub]');
     if (edit) { startEditing(edit.dataset.editSub); return; }
+    const reset = event.target.closest('[data-reset-sub]');
+    if (reset) { resetSubscriberPassword(reset.dataset.resetSub); return; }
     const del = event.target.closest('[data-delete-sub]');
     if (del) deleteSubscriber(del.dataset.deleteSub);
   });

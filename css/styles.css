@@ -160,6 +160,14 @@ button { cursor: pointer; }
   white-space: nowrap;
 }
 .header-link:hover { background: var(--accent); border-color: var(--gold); color: #fff; }
+.header-links { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.header-link .hl-short { display: none; }
+@media (max-width: 520px) {
+  .header-link .hl-long { display: none; }
+  .header-link .hl-short { display: inline; }
+  .header-links { gap: 6px; }
+  .header-link { padding: 6px 10px; font-size: .78rem; }
+}
 
 /* ------------------------------------------------------------ mini blog -- */
 .blog-main { padding-top: 22px; padding-bottom: 28px; }
@@ -1142,12 +1150,12 @@ main { padding-bottom: 120px; }
   padding: 10px 12px;
   font-size: .86rem;
 }
-.sub-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sub-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .sub-name { font-weight: 700; }
 .sub-line { color: var(--muted); margin: 3px 0 0; word-break: break-word; }
 .sub-date { font-size: .72rem; color: var(--silver); margin: 6px 0 0; }
-.sub-actions { display: flex; gap: 6px; flex: 0 0 auto; }
-.sub-edit, .sub-delete { padding: 4px 12px; font-size: .76rem; flex: 0 0 auto; }
+.sub-actions { display: flex; flex-wrap: wrap; gap: 6px; flex: 0 0 auto; }
+.sub-edit, .sub-reset, .sub-delete { padding: 4px 12px; font-size: .76rem; flex: 0 0 auto; }
 .sub-card.is-editing { border-color: var(--gold); }
 
 /* estoque no painel admin */
@@ -1189,3 +1197,13 @@ main { padding-bottom: 120px; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* -------------------------------------------------- área do assinante -- */
+.area-main { padding-top: 26px; padding-bottom: 40px; max-width: 560px; }
+.area-login { margin-top: 6px; }
+.area-help { margin: 14px 0 0; line-height: 1.5; }
+.area-welcome h2 { font-size: 1.6rem; margin-bottom: 2px; }
+.area-welcome p { color: var(--muted); margin: 0 0 16px; }
+.area-initial-warning { margin: 0 0 14px; }
+.area-soon { color: var(--muted); margin: 0; }
+.area-ok { color: var(--ok); margin-top: 10px; }

@@ -26,6 +26,12 @@ function fakeDb() {
       return row;
     },
     async listSubscribers() { calls.push(['list']); return [...rows].reverse(); },
+    async findSubscriberConflicts(_e, { phone, email, excludeId }) {
+      return rows
+        .filter((r) => r.id !== excludeId && (r.phone === phone || (email && r.email && r.email.toLowerCase() === email.toLowerCase())))
+        .map((r) => ({ id: r.id, phone: r.phone, email: r.email }));
+    },
+    async setSubscriberPasswordHash(_e, id, hash) { calls.push(['password', id, hash]); return rows.some((r) => r.id === id); },
     async updateSubscriber(_e, id, value) {
       calls.push(['update', id, value]);
       const row = rows.find((r) => r.id === id);
@@ -76,8 +82,8 @@ test('POST with an invalid form answers 400 with the bad fields and stores nothi
 test('GET lists the subscribers, newest first', async () => {
   const db = fakeDb();
   const handler = make(db);
-  for (const name of ['Primeira', 'Segunda']) {
-    await handler(mockReq({ method: 'POST', headers: adminHeaders(), body: { name, phone: '1133334444' } }), mockRes());
+  for (const [name, phone] of [['Primeira', '1133334444'], ['Segunda', '1133335555']]) {
+    await handler(mockReq({ method: 'POST', headers: adminHeaders(), body: { name, phone } }), mockRes());
   }
   const res = mockRes();
   await handler(mockReq({ method: 'GET', headers: adminHeaders() }), res);
@@ -164,5 +170,53 @@ test('PUT answers 404 for an id that does not exist and 400 for a missing or non
     await handler(mockReq({ method: 'PUT', headers: adminHeaders(), query, body: { name: 'A', phone: '1133334444' } }), res);
     assert.equal(res.statusCode, 400, JSON.stringify(query));
   }
+  assert.equal(db.calls.length, 0);
+});
+
+test('POST and PUT answer 409 naming the field when the phone or e-mail already belongs to someone else', async () => {
+  const db = fakeDb();
+  const handler = make(db);
+  await handler(mockReq({ method: 'POST', headers: adminHeaders(), body: { name: 'A', phone: '1133334444', email: 'a@x.com' } }), mockRes());
+  await handler(mockReq({ method: 'POST', headers: adminHeaders(), body: { name: 'B', phone: '1133335555' } }), mockRes());
+
+  const dupPhone = mockRes();
+  await handler(mockReq({ method: 'POST', headers: adminHeaders(), body: { name: 'C', phone: '(11) 3333-4444' } }), dupPhone);
+  assert.equal(dupPhone.statusCode, 409);
+  assert.deepEqual(dupPhone.body, { error: 'duplicate', field: 'phone' });
+
+  const dupEmail = mockRes();
+  await handler(mockReq({ method: 'PUT', headers: adminHeaders(), query: { id: '2' }, body: { name: 'B', phone: '1133335555', email: 'A@x.com' } }), dupEmail);
+  assert.equal(dupEmail.statusCode, 409);
+  assert.deepEqual(dupEmail.body, { error: 'duplicate', field: 'email' });
+  assert.equal(db.rows.length, 2);
+});
+
+test('POST ?action=reset-password&id= sends that subscriber back to the initial password, without creating anyone', async () => {
+  const db = fakeDb();
+  const handler = make(db);
+  await handler(mockReq({ method: 'POST', headers: adminHeaders(), body: { name: 'A', phone: '1133334444' } }), mockRes());
+
+  const ok = mockRes();
+  await handler(mockReq({ method: 'POST', headers: adminHeaders(), query: { id: '1', action: 'reset-password' } }), ok);
+  assert.equal(ok.statusCode, 200);
+  assert.deepEqual(ok.body, { reset: true });
+  assert.deepEqual(db.calls.filter((c) => c[0] === 'password'), [['password', 1, null]]);
+  assert.equal(db.rows.length, 1);
+
+  const missing = mockRes();
+  await handler(mockReq({ method: 'POST', headers: adminHeaders(), query: { id: '42', action: 'reset-password' } }), missing);
+  assert.equal(missing.statusCode, 404);
+
+  const noId = mockRes();
+  await handler(mockReq({ method: 'POST', headers: adminHeaders(), query: { action: 'reset-password' } }), noId);
+  assert.equal(noId.statusCode, 400);
+  assert.equal(db.rows.length, 1);
+});
+
+test('reset-password also needs the admin session', async () => {
+  const db = fakeDb();
+  const res = mockRes();
+  await make(db)(mockReq({ method: 'POST', headers: {}, query: { id: '1', action: 'reset-password' } }), res);
+  assert.equal(res.statusCode, 401);
   assert.equal(db.calls.length, 0);
 });

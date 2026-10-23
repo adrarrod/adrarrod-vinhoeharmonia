@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Área do assinante — Vinho &amp; Harmonia</title>
+  <meta name="description" content="Área exclusiva dos assinantes da Vinho &amp; Harmonia.">
+  <meta name="theme-color" content="#7a1f3d">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ============================================================== header -->
+  <header class="site-header">
+    <div class="wrap header-top">
+      <a class="brand brand-link" href="index.html">
+        <div class="brand-mark" aria-hidden="true">V&amp;H</div>
+        <div class="brand-text">
+          <h1>Vinho <span class="amp">&amp;</span> Harmonia</h1>
+          <p class="brand-slogan">As melhores opções de vinho para você</p>
+        </div>
+      </a>
+      <a class="header-link" href="index.html">← Loja</a>
+    </div>
+  </header>
+
+  <!-- ================================================================ main -->
+  <main class="wrap area-main">
+
+    <p class="orders-status" id="area-loading">Carregando…</p>
+
+    <!-- ----------------------------------------------------------- entrar -->
+    <section class="fieldset-block area-login" id="area-login" hidden>
+      <div class="block-title">Área do assinante</div>
+      <form id="area-login-form" novalidate>
+        <div class="field">
+          <label for="area-login-id">Celular ou e-mail</label>
+          <input id="area-login-id" name="login" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="area-login-password">Senha</label>
+          <input id="area-login-password" name="password" type="password" autocomplete="current-password">
+        </div>
+
+        <div class="form-errors" id="area-login-error" hidden></div>
+
+        <button class="btn btn-gold btn-block" type="submit" id="area-login-submit" style="margin-top:12px">Entrar</button>
+      </form>
+      <p class="field-hint area-help">Primeiro acesso? Use a senha inicial que a loja informou a você. Esqueceu a senha? Fale com a loja (contato no rodapé) e ela volta para a inicial.</p>
+    </section>
+
+    <!-- ------------------------------------------------------ área logada -->
+    <div id="area-home" hidden>
+      <div class="area-welcome">
+        <h2>Olá, <span id="area-name"></span></h2>
+        <p>Que bom ter você por aqui.</p>
+      </div>
+
+      <div class="form-errors area-initial-warning" id="area-initial-warning" hidden>
+        <strong>Você ainda usa a senha inicial.</strong> Para sua segurança, troque por uma senha só sua, na seção &ldquo;Alterar senha&rdquo; abaixo.
+      </div>
+
+      <section class="fieldset-block" id="area-content">
+        <div class="block-title">Suas informações</div>
+        <p class="area-soon">Em breve, aqui você vai encontrar novidades e informações exclusivas para assinantes.</p>
+      </section>
+
+      <section class="fieldset-block" id="area-password">
+        <div class="block-title">Alterar senha</div>
+        <form id="area-password-form" novalidate>
+          <div class="field">
+            <label for="area-current-password">Senha atual</label>
+            <input id="area-current-password" type="password" autocomplete="current-password">
+          </div>
+          <div class="field">
+            <label for="area-new-password">Nova senha</label>
+            <input id="area-new-password" type="password" autocomplete="new-password">
+            <span class="field-hint">De 6 a 100 caracteres, diferente da senha inicial.</span>
+          </div>
+          <div class="field">
+            <label for="area-confirm-password">Repita a nova senha</label>
+            <input id="area-confirm-password" type="password" autocomplete="new-password">
+          </div>
+
+          <div class="form-errors" id="area-password-error" hidden></div>
+          <p class="orders-status area-ok" id="area-password-ok" hidden></p>
+
+          <button class="btn btn-gold btn-block" type="submit" id="area-password-submit" style="margin-top:12px">Salvar nova senha</button>
+        </form>
+      </section>
+
+      <button class="btn btn-ghost btn-block" type="button" id="area-logout">Sair</button>
+    </div>
+
+  </main>
+
+  <!-- ============================================================== footer -->
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <h3>Endereço</h3>
+          <p>AV. Engenheiro Tomás Magalhães, 225<br>São Paulo / SP<br>CNPJ 56.379.529/0001-12</p>
+        </div>
+        <div>
+          <h3>Horário</h3>
+          <p>Aberto todos os dias, 24 horas por dia.<br>Pedidos pelo site a qualquer hora.</p>
+        </div>
+        <div>
+          <h3>Contato</h3>
+          <p>(11) 95579-3424<br>contato@vinhoharmonia.com.br</p>
+        </div>
+      </div>
+      <p class="age-warning">Venda proibida para menores de 18 anos</p>
+      <p style="text-align:center;margin-top:10px;font-size:.78rem">Beba com moderação. Se beber, não dirija.</p>
+    </div>
+  </footer>
+
+  <script src="js/area-assinante.js"></script>
+</body>
+</html>

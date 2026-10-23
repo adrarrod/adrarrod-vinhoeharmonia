@@ -159,22 +159,47 @@ você cancelá-lo no painel; o mesmo vale para pedido com cartão recusado.
 
 ## Assinantes
 
-Cadastro de assinantes, **só para uso interno** (não existe formulário público).
+Cadastro de assinantes (feito por você no painel) e a **Área do assinante**
+(onde eles entram).
 
-- **Onde:** em `/admin.html`, seção **Assinantes** (depois de entrar com a senha).
-  Preencha o formulário e clique em *Cadastrar assinante*.
+**Cadastro (painel `/admin.html`, seção Assinantes)**
+
 - **Campos:** Nome e Telefone são obrigatórios. E-mail, Endereço, Complemento,
   Número, Bairro, Cidade, Estado (sigla, ex.: SP) e CEP são opcionais.
-- **Banco:** os dados ficam na tabela `subscribers`, criada sozinha no primeiro
-  uso. Telefone e CEP são guardados só com números e aparecem formatados na tela.
+- **Banco:** tabela `subscribers`, criada/atualizada sozinha no primeiro uso.
+  Telefone e CEP são guardados só com números e aparecem formatados na tela.
+- **Telefone e e-mail não podem se repetir** (os dois servem de login). O painel
+  avisa "Este celular/e-mail já está cadastrado em outro assinante".
 - **Lista:** os mais novos primeiro, com filtro por nome, telefone ou e-mail.
-  Cada card tem os botões **Editar** e **Excluir** (este pede confirmação).
-- **Editar:** clique em *Editar*; os dados sobem para o formulário (que passa a
-  mostrar "Editando: nome"). Altere o que precisar e clique em *Salvar
-  alterações*, ou em *Cancelar edição*. Um campo apagado no formulário fica
-  vazio no cadastro (só Nome e Telefone não podem ficar vazios).
-- **Ainda não existe:** aviso de telefone repetido e cadastro pelo site pelo
-  próprio cliente.
+  Cada card tem **Editar**, **Redefinir senha** e **Excluir** (os dois últimos
+  pedem confirmação).
+- **Editar:** os dados sobem para o formulário ("Editando: nome"); mude o que
+  precisar e clique em *Salvar alterações* (ou *Cancelar edição*). Campo opcional
+  apagado fica vazio no cadastro.
+
+**Área do assinante (`/area-assinante.html`)**
+
+- **Acesso:** link **Área do assinante** (no celular, "Assinante") no cabeçalho
+  da home.
+- **Login:** celular (com ou sem máscara) **ou** e-mail, mais a senha.
+- **Senha inicial:** `123mudar`, para todo assinante (os já cadastrados também).
+  Ela não é gravada no banco: assinante sem senha própria = senha inicial.
+- **Trocar a senha:** o assinante troca quando quiser, na própria página (de 6 a
+  100 caracteres, diferente da inicial). Enquanto usar a inicial, a página mostra
+  um aviso para trocar. Senhas próprias ficam no banco só embaralhadas (scrypt).
+- **Esqueci a senha:** não há envio de e-mail. O assinante fala com você e você
+  clica em **Redefinir senha** no card dele: volta para `123mudar` e as sessões
+  abertas dele são derrubadas.
+- **Segurança:** 5 senhas erradas seguidas bloqueiam aquele acesso por 15 minutos.
+  A sessão dura 7 dias e usa a mesma variável `ADMIN_SESSION_SECRET` do painel
+  (nenhuma variável nova). Trocar ou redefinir a senha encerra as outras sessões.
+- **Conteúdo:** por enquanto a página mostra só "Em breve"; as informações
+  exclusivas entram na próxima etapa.
+- **Limite da Vercel:** o plano gratuito aceita 12 funções em `api/`, e agora há
+  exatamente 12. Para criar mais uma API será preciso juntar duas existentes
+  (como foi feito com `api/subscriber-area.js`, que atende login, sessão e senha).
+- **Ainda não existe:** cadastro pelo site pelo próprio cliente e envio de
+  e-mail/WhatsApp.
 
 ## Coleções com banner (ex.: Halloween)
 

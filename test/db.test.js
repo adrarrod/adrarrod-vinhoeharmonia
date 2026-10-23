@@ -145,12 +145,22 @@ test('cancelOrder marks the order cancelled once and returns its items; null if 
 // --- assinantes ---
 
 test('ensureSubscribersSchema creates the subscribers table with name and phone required', async () => {
-  const execute = fakeExecute([{ rows: [] }]);
+  const execute = fakeExecute([{ rows: [] }, { rows: [] }]);
   await db.ensureSubscribersSchema(execute);
-  assert.equal(execute.calls.length, 1);
   assert.match(execute.calls[0].text, /CREATE TABLE IF NOT EXISTS subscribers/);
   assert.match(execute.calls[0].text, /name TEXT NOT NULL/);
   assert.match(execute.calls[0].text, /phone TEXT NOT NULL/);
+});
+
+test('ensureSubscribersSchema also adds the login columns to a table created before the subscriber area existed', async () => {
+  const execute = fakeExecute([{ rows: [] }, { rows: [] }]);
+  await db.ensureSubscribersSchema(execute);
+  assert.equal(execute.calls.length, 2);
+  const alter = execute.calls[1].text;
+  assert.match(alter, /ALTER TABLE subscribers/);
+  assert.match(alter, /ADD COLUMN IF NOT EXISTS password_hash TEXT\b(?! NOT NULL)/, 'null hash = still on the initial password');
+  assert.match(alter, /ADD COLUMN IF NOT EXISTS failed_attempts INTEGER NOT NULL DEFAULT 0/);
+  assert.match(alter, /ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ/);
 });
 
 test('insertSubscriber stores every field as a parameter and returns the new row', async () => {
@@ -203,4 +213,73 @@ test('updateSubscriber rewrites every field of that id and returns the updated r
 
   const none = fakeExecute([{ rows: [] }]);
   assert.equal(await db.updateSubscriber(none, 999, value), null);
+});
+
+test('getSubscriberBy finds one subscriber by id, phone or email (email ignoring upper/lower case), or returns null', async () => {
+  const byId = fakeExecute([{ rows: [{ id: 4 }] }]);
+  assert.deepEqual(await db.getSubscriberBy(byId, 'id', 4), { id: 4 });
+  assert.match(byId.calls[0].text, /WHERE id = \$1/);
+  assert.deepEqual(byId.calls[0].params, [4]);
+
+  const byPhone = fakeExecute([{ rows: [{ id: 4 }] }]);
+  await db.getSubscriberBy(byPhone, 'phone', '11987654321');
+  assert.match(byPhone.calls[0].text, /WHERE phone = \$1/);
+
+  const byEmail = fakeExecute([{ rows: [] }]);
+  assert.equal(await db.getSubscriberBy(byEmail, 'email', 'Maria@X.com'), null);
+  assert.match(byEmail.calls[0].text, /WHERE LOWER\(email\) = \$1/);
+  assert.deepEqual(byEmail.calls[0].params, ['maria@x.com']);
+});
+
+test('getSubscriberBy refuses any other column, so a field name can never be turned into SQL', async () => {
+  await assert.rejects(() => db.getSubscriberBy(fakeExecute([]), 'password_hash; DROP TABLE subscribers', 'x'), /unsupported/);
+});
+
+test('findSubscriberConflicts lists other subscribers using the same phone or email, skipping the one being edited', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 2, phone: '1133334444', email: null }] }]);
+  const rows = await db.findSubscriberConflicts(execute, { phone: '1133334444', email: 'A@x.com', excludeId: 9 });
+  assert.deepEqual(rows, [{ id: 2, phone: '1133334444', email: null }]);
+  assert.match(execute.calls[0].text, /phone = \$1/);
+  assert.match(execute.calls[0].text, /LOWER\(email\) = \$2/);
+  assert.match(execute.calls[0].text, /id <> \$3/);
+  assert.deepEqual(execute.calls[0].params, ['1133334444', 'a@x.com', 9]);
+});
+
+test('findSubscriberConflicts passes null for an email left blank and for a new registration (no id to skip)', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.findSubscriberConflicts(execute, { phone: '1133334444', email: null, excludeId: null });
+  assert.deepEqual(execute.calls[0].params, ['1133334444', null, null]);
+});
+
+test('recordFailedLogin counts the miss and, at the limit, locks the account and restarts the count', async () => {
+  const execute = fakeExecute([{ rows: [{ failed_attempts: 1, locked_until: null }] }]);
+  const row = await db.recordFailedLogin(execute, 5, 5, 15);
+  assert.deepEqual(row, { failed_attempts: 1, locked_until: null });
+  const text = execute.calls[0].text;
+  assert.match(text, /UPDATE subscribers/);
+  assert.match(text, /failed_attempts \+ 1 >= \$2/);
+  assert.match(text, /locked_until = CASE/);
+  assert.match(text, /WHERE id = \$1/);
+  assert.deepEqual(execute.calls[0].params, [5, 5, 15]);
+});
+
+test('clearLoginFailures zeroes the count and removes the lock', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.clearLoginFailures(execute, 5);
+  assert.match(execute.calls[0].text, /failed_attempts = 0, locked_until = NULL WHERE id = \$1/);
+  assert.deepEqual(execute.calls[0].params, [5]);
+});
+
+test('setSubscriberPasswordHash saves the new hash (null = back to the initial password), clears failures and reports whether the subscriber exists', async () => {
+  const done = fakeExecute([{ rows: [{ id: 5 }] }]);
+  assert.equal(await db.setSubscriberPasswordHash(done, 5, 'scrypt$aa$bb'), true);
+  assert.match(done.calls[0].text, /SET password_hash = \$2, failed_attempts = 0, locked_until = NULL/);
+  assert.deepEqual(done.calls[0].params, [5, 'scrypt$aa$bb']);
+
+  const reset = fakeExecute([{ rows: [{ id: 5 }] }]);
+  await db.setSubscriberPasswordHash(reset, 5, null);
+  assert.deepEqual(reset.calls[0].params, [5, null]);
+
+  const none = fakeExecute([{ rows: [] }]);
+  assert.equal(await db.setSubscriberPasswordHash(none, 999, null), false);
 });

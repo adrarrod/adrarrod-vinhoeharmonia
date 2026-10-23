@@ -108,6 +108,12 @@ function fakeDb() {
       return row;
     },
     async listSubscribers() { calls.push(['list']); return [...rows].reverse(); },
+    async findSubscriberConflicts(_execute, { phone, email, excludeId }) {
+      return rows
+        .filter((r) => r.id !== excludeId && (r.phone === phone || (email && r.email && r.email.toLowerCase() === email.toLowerCase())))
+        .map((r) => ({ id: r.id, phone: r.phone, email: r.email }));
+    },
+    async setSubscriberPasswordHash(_execute, id, hash) { calls.push(['password', id, hash]); return rows.some((r) => r.id === id); },
     async updateSubscriber(_execute, id, value) {
       calls.push(['update', id, value]);
       const row = rows.find((r) => r.id === id);
@@ -194,4 +200,60 @@ test('updateSubscriber throws ValidationError for a bad form and never touches t
 test('updateSubscriber returns null when the subscriber does not exist', async () => {
   const db = fakeDb();
   assert.equal(await svc.updateSubscriber(deps(db), 99, { name: 'A', phone: '1133334444' }), null);
+});
+
+test('the e-mail is stored in lower case, so it works as a login whatever the capitalisation typed', () => {
+  assert.equal(svc.validateSubscriber({ name: 'A', phone: '1133334444', email: ' Maria@Example.COM ' }).value.email, 'maria@example.com');
+});
+
+test('createSubscriber refuses a phone already registered (with a different mask) and stores nothing', async () => {
+  const db = fakeDb();
+  await svc.createSubscriber(deps(db), { name: 'Primeira', phone: '(11) 3333-4444' });
+  await assert.rejects(
+    () => svc.createSubscriber(deps(db), { name: 'Segunda', phone: '1133334444' }),
+    (err) => err instanceof svc.DuplicateError && err.field === 'phone'
+  );
+  assert.equal(db.calls.filter((c) => c[0] === 'insert').length, 1);
+});
+
+test('createSubscriber refuses an e-mail already registered, ignoring capital letters', async () => {
+  const db = fakeDb();
+  await svc.createSubscriber(deps(db), { name: 'Primeira', phone: '1133334444', email: 'maria@x.com' });
+  await assert.rejects(
+    () => svc.createSubscriber(deps(db), { name: 'Segunda', phone: '1133335555', email: 'MARIA@x.com' }),
+    (err) => err instanceof svc.DuplicateError && err.field === 'email'
+  );
+});
+
+test('two subscribers may both leave the e-mail blank', async () => {
+  const db = fakeDb();
+  await svc.createSubscriber(deps(db), { name: 'A', phone: '1133334444' });
+  await svc.createSubscriber(deps(db), { name: 'B', phone: '1133335555' });
+  assert.equal(db.rows.length, 2);
+});
+
+test('updateSubscriber lets a subscriber keep their own phone and e-mail, but not take another one\'s', async () => {
+  const db = fakeDb();
+  await svc.createSubscriber(deps(db), { name: 'A', phone: '1133334444', email: 'a@x.com' });
+  await svc.createSubscriber(deps(db), { name: 'B', phone: '1133335555', email: 'b@x.com' });
+
+  const same = await svc.updateSubscriber(deps(db), 1, { name: 'A Nova', phone: '1133334444', email: 'a@x.com' });
+  assert.equal(same.name, 'A Nova');
+
+  await assert.rejects(
+    () => svc.updateSubscriber(deps(db), 2, { name: 'B', phone: '(11) 3333-4444', email: 'b@x.com' }),
+    (err) => err instanceof svc.DuplicateError && err.field === 'phone'
+  );
+  await assert.rejects(
+    () => svc.updateSubscriber(deps(db), 2, { name: 'B', phone: '1133335555', email: 'A@x.com' }),
+    (err) => err instanceof svc.DuplicateError && err.field === 'email'
+  );
+});
+
+test('resetSubscriberPassword sends the subscriber back to the initial password and tells whether they exist', async () => {
+  const db = fakeDb();
+  await svc.createSubscriber(deps(db), { name: 'A', phone: '1133334444' });
+  assert.equal(await svc.resetSubscriberPassword(deps(db), 1), true);
+  assert.deepEqual(db.calls.filter((c) => c[0] === 'password'), [['password', 1, null]]);
+  assert.equal(await svc.resetSubscriberPassword(deps(db), 99), false);
 });
