@@ -26,6 +26,13 @@ function fakeDb() {
       return row;
     },
     async listSubscribers() { calls.push(['list']); return [...rows].reverse(); },
+    async updateSubscriber(_e, id, value) {
+      calls.push(['update', id, value]);
+      const row = rows.find((r) => r.id === id);
+      if (!row) return null;
+      Object.assign(row, { name: value.name, phone: value.phone, email: value.email, address_street: value.street, address_complement: value.complement, address_number: value.number, address_neighborhood: value.neighborhood, address_city: value.city, address_state: value.state, address_cep: value.cep });
+      return row;
+    },
     async deleteSubscriber(_e, id) { calls.push(['delete', id]); const i = rows.findIndex((r) => r.id === id); if (i === -1) return false; rows.splice(i, 1); return true; }
   };
 }
@@ -34,7 +41,7 @@ const make = (db) => createSubscribersHandler({ execute: async () => ({ rows: []
 test('every method needs an admin session: nobody else can read, add or delete subscribers', async () => {
   const db = fakeDb();
   const handler = make(db);
-  for (const method of ['GET', 'POST', 'DELETE']) {
+  for (const method of ['GET', 'POST', 'PUT', 'DELETE']) {
     const res = mockRes();
     await handler(mockReq({ method, headers: {}, body: { name: 'A', phone: '1133334444' }, query: { id: '1' } }), res);
     assert.equal(res.statusCode, 401, method);
@@ -107,7 +114,7 @@ test('DELETE rejects a missing or non-numeric id without touching the database',
 test('other methods answer 405, and a database failure answers 500 instead of crashing', async () => {
   const handler = make(fakeDb());
   const res = mockRes();
-  await handler(mockReq({ method: 'PUT', headers: adminHeaders() }), res);
+  await handler(mockReq({ method: 'PATCH', headers: adminHeaders() }), res);
   assert.equal(res.statusCode, 405);
 
   const broken = fakeDb();
@@ -115,4 +122,47 @@ test('other methods answer 405, and a database failure answers 500 instead of cr
   const res2 = mockRes();
   await make(broken)(mockReq({ method: 'GET', headers: adminHeaders() }), res2);
   assert.equal(res2.statusCode, 500);
+});
+
+test('PUT updates the subscriber with that id and answers 200 with it', async () => {
+  const db = fakeDb();
+  const handler = make(db);
+  await handler(mockReq({ method: 'POST', headers: adminHeaders(), body: { name: 'Maria', phone: '1133334444', city: 'SP' } }), mockRes());
+
+  const res = mockRes();
+  await handler(mockReq({ method: 'PUT', headers: adminHeaders(), query: { id: '1' }, body: { name: 'Maria Souza', phone: '(11) 98765-4321', city: '' } }), res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.subscriber.id, 1);
+  assert.equal(res.body.subscriber.name, 'Maria Souza');
+  assert.equal(res.body.subscriber.phone, '11987654321');
+  assert.equal(res.body.subscriber.city, null);
+});
+
+test('PUT with an invalid form answers 400 with the bad fields and changes nothing', async () => {
+  const db = fakeDb();
+  const handler = make(db);
+  await handler(mockReq({ method: 'POST', headers: adminHeaders(), body: { name: 'Maria', phone: '1133334444' } }), mockRes());
+  db.calls.length = 0;
+
+  const res = mockRes();
+  await handler(mockReq({ method: 'PUT', headers: adminHeaders(), query: { id: '1' }, body: { name: '', phone: '1', cep: '12' } }), res);
+  assert.equal(res.statusCode, 400);
+  assert.deepEqual(res.body.errors.sort(), ['cep', 'name', 'phone']);
+  assert.equal(db.calls.length, 0);
+});
+
+test('PUT answers 404 for an id that does not exist and 400 for a missing or non-numeric id', async () => {
+  const db = fakeDb();
+  const handler = make(db);
+  const missing = mockRes();
+  await handler(mockReq({ method: 'PUT', headers: adminHeaders(), query: { id: '42' }, body: { name: 'A', phone: '1133334444' } }), missing);
+  assert.equal(missing.statusCode, 404);
+
+  db.calls.length = 0;
+  for (const query of [{}, { id: 'abc' }, { id: '0' }, { id: '1.5' }]) {
+    const res = mockRes();
+    await handler(mockReq({ method: 'PUT', headers: adminHeaders(), query, body: { name: 'A', phone: '1133334444' } }), res);
+    assert.equal(res.statusCode, 400, JSON.stringify(query));
+  }
+  assert.equal(db.calls.length, 0);
 });

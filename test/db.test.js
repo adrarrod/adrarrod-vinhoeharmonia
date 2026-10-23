@@ -187,3 +187,20 @@ test('deleteSubscriber removes by id and reports whether a row was deleted', asy
   const none = fakeExecute([{ rows: [] }]);
   assert.equal(await db.deleteSubscriber(none, 999), false);
 });
+
+test('updateSubscriber rewrites every field of that id and returns the updated row, or null when it does not exist', async () => {
+  const value = {
+    name: 'Maria', phone: '11987654321', email: null, street: 'Rua A', complement: null,
+    number: '10', neighborhood: 'Centro', city: 'SP', state: 'SP', cep: '01310100'
+  };
+  const done = fakeExecute([{ rows: [{ id: 7, name: 'Maria' }] }]);
+  assert.deepEqual(await db.updateSubscriber(done, 7, value), { id: 7, name: 'Maria' });
+  assert.match(done.calls[0].text, /UPDATE subscribers SET/);
+  assert.match(done.calls[0].text, /WHERE id = \$11/);
+  assert.match(done.calls[0].text, /RETURNING \*/);
+  assert.doesNotMatch(done.calls[0].text, /created_at/);
+  assert.deepEqual(done.calls[0].params, ['Maria', '11987654321', null, 'Rua A', null, '10', 'Centro', 'SP', 'SP', '01310100', 7]);
+
+  const none = fakeExecute([{ rows: [] }]);
+  assert.equal(await db.updateSubscriber(none, 999, value), null);
+});

@@ -168,9 +168,13 @@ Cadastro de assinantes, **só para uso interno** (não existe formulário públi
 - **Banco:** os dados ficam na tabela `subscribers`, criada sozinha no primeiro
   uso. Telefone e CEP são guardados só com números e aparecem formatados na tela.
 - **Lista:** os mais novos primeiro, com filtro por nome, telefone ou e-mail.
-  Cada card tem o botão **Excluir** (pede confirmação).
-- **Ainda não existe:** editar um assinante (por enquanto exclua e cadastre de
-  novo), aviso de telefone repetido e cadastro pelo site pelo próprio cliente.
+  Cada card tem os botões **Editar** e **Excluir** (este pede confirmação).
+- **Editar:** clique em *Editar*; os dados sobem para o formulário (que passa a
+  mostrar "Editando: nome"). Altere o que precisar e clique em *Salvar
+  alterações*, ou em *Cancelar edição*. Um campo apagado no formulário fica
+  vazio no cadastro (só Nome e Telefone não podem ficar vazios).
+- **Ainda não existe:** aviso de telefone repetido e cadastro pelo site pelo
+  próprio cliente.
 
 ## Coleções com banner (ex.: Halloween)
 

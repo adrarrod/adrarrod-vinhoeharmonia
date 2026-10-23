@@ -1146,7 +1146,9 @@ main { padding-bottom: 120px; }
 .sub-name { font-weight: 700; }
 .sub-line { color: var(--muted); margin: 3px 0 0; word-break: break-word; }
 .sub-date { font-size: .72rem; color: var(--silver); margin: 6px 0 0; }
-.sub-delete { padding: 4px 12px; font-size: .76rem; flex: 0 0 auto; }
+.sub-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.sub-edit, .sub-delete { padding: 4px 12px; font-size: .76rem; flex: 0 0 auto; }
+.sub-card.is-editing { border-color: var(--gold); }
 
 /* estoque no painel admin */
 .admin-stock { margin-bottom: 18px; }

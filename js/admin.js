@@ -21,6 +21,8 @@
   const subErrors = document.getElementById('sub-errors');
   const subStatus = document.getElementById('sub-status');
   const subSubmit = document.getElementById('sub-submit');
+  const subCancel = document.getElementById('sub-cancel');
+  const subFormTitle = document.getElementById('sub-form-title');
   const subList = document.getElementById('sub-list');
   const subCount = document.getElementById('sub-count');
   const subFilter = document.getElementById('sub-filter');
@@ -249,6 +251,7 @@
     city: 'sub-city', state: 'sub-state', cep: 'sub-cep'
   };
   let subscribers = [];
+  let editingId = null; // id do assinante em edição; null = cadastrando um novo
 
   function formatPhone(digits) {
     const d = String(digits || '').replace(/\D/g, '');
@@ -285,7 +288,7 @@
   function showSubErrors(fields) {
     subForm.querySelectorAll('.field').forEach((f) => f.classList.remove('has-error'));
     if (!fields || !fields.length) { subErrors.hidden = true; subErrors.innerHTML = ''; return; }
-    subErrors.innerHTML = '<strong>Confira estes campos antes de cadastrar:</strong><ul>' +
+    subErrors.innerHTML = '<strong>Confira estes campos antes de ' + (editingId === null ? 'cadastrar' : 'salvar') + ':</strong><ul>' +
       fields.map((f) => '<li>' + escapeHtml(SUB_FIELD_LABELS[f] || f) + '</li>').join('') + '</ul>';
     subErrors.hidden = false;
     fields.forEach((f) => {
@@ -301,14 +304,48 @@
     return parts.join(' · ');
   }
 
+  // Telefone e CEP vêm do banco só com números; no formulário voltam com máscara.
+  function startEditing(id) {
+    const sub = subscribers.find((s) => String(s.id) === String(id));
+    if (!sub) return;
+    editingId = sub.id;
+    Object.keys(SUB_FIELD_IDS).forEach((field) => {
+      let value = sub[field] || '';
+      if (field === 'phone') value = formatPhone(value);
+      if (field === 'cep') value = formatCep(value);
+      document.getElementById(SUB_FIELD_IDS[field]).value = value;
+    });
+    setSubStatus('', false);
+    showSubErrors([]);
+    subSubmit.textContent = 'Salvar alterações';
+    subCancel.hidden = false;
+    subFormTitle.textContent = 'Editando: ' + sub.name;
+    renderSubscribers();
+    subForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('sub-name').focus();
+  }
+
+  function stopEditing() {
+    editingId = null;
+    subForm.reset();
+    showSubErrors([]);
+    subSubmit.textContent = 'Cadastrar assinante';
+    subCancel.hidden = true;
+    subFormTitle.textContent = 'Assinantes';
+    renderSubscribers();
+  }
+
   function renderSubscriber(s) {
     const contact = [formatPhone(s.phone), s.email].filter(Boolean).map(escapeHtml).join(' · ');
     const address = subscriberAddress(s);
     return (
-      '<article class="sub-card">' +
+      '<article class="sub-card' + (s.id === editingId ? ' is-editing' : '') + '">' +
         '<div class="sub-card-head">' +
           '<span class="sub-name">' + escapeHtml(s.name) + '</span>' +
-          '<button class="btn btn-ghost sub-delete" type="button" data-delete-sub="' + escapeHtml(s.id) + '">Excluir</button>' +
+          '<span class="sub-actions">' +
+            '<button class="btn btn-ghost sub-edit" type="button" data-edit-sub="' + escapeHtml(s.id) + '">Editar</button>' +
+            '<button class="btn btn-ghost sub-delete" type="button" data-delete-sub="' + escapeHtml(s.id) + '">Excluir</button>' +
+          '</span>' +
         '</div>' +
         '<p class="sub-line">' + contact + '</p>' +
         (address ? '<p class="sub-line">' + escapeHtml(address) + '</p>' : '') +
@@ -352,8 +389,9 @@
 
     subSubmit.disabled = true;
     try {
-      const res = await fetch('/api/subscribers', {
-        method: 'POST',
+      const wasEditing = editingId !== null;
+      const res = await fetch('/api/subscribers' + (wasEditing ? '?id=' + encodeURIComponent(editingId) : ''), {
+        method: wasEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify(payload)
@@ -364,14 +402,20 @@
         showSubErrors(Array.isArray(data.errors) ? data.errors : []);
         return;
       }
+      if (res.status === 404 && wasEditing) {
+        stopEditing();
+        setSubStatus('Este assinante não existe mais (foi excluído). Nada foi alterado.', true);
+        await loadSubscribers();
+        return;
+      }
       if (!res.ok) throw new Error('http ' + res.status);
       const data = await res.json();
-      subForm.reset();
-      setSubStatus('Assinante ' + data.subscriber.name + ' cadastrado.', false);
+      stopEditing();
+      setSubStatus('Assinante ' + data.subscriber.name + (wasEditing ? ' atualizado.' : ' cadastrado.'), false);
       await loadSubscribers();
-      document.getElementById('sub-name').focus();
+      if (!wasEditing) document.getElementById('sub-name').focus();
     } catch (err) {
-      setSubStatus('Não foi possível cadastrar agora. Tente de novo.', true);
+      setSubStatus('Não foi possível ' + (editingId === null ? 'cadastrar' : 'salvar') + ' agora. Tente de novo.', true);
     } finally {
       subSubmit.disabled = false;
     }
@@ -384,6 +428,7 @@
       const res = await fetch('/api/subscribers?id=' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' });
       if (res.status === 401) { showLogin(); return; }
       if (!res.ok && res.status !== 404) throw new Error('http ' + res.status);
+      if (String(editingId) === String(id)) stopEditing();
       setSubStatus('', false);
       await loadSubscribers();
     } catch (err) {
@@ -396,9 +441,12 @@
   document.getElementById('sub-cep').addEventListener('input', function () { this.value = maskCep(this.value); });
   document.getElementById('sub-state').addEventListener('input', function () { this.value = this.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 2); });
   subFilter.addEventListener('input', renderSubscribers);
+  subCancel.addEventListener('click', () => { setSubStatus('', false); stopEditing(); });
   subList.addEventListener('click', (event) => {
-    const btn = event.target.closest('[data-delete-sub]');
-    if (btn) deleteSubscriber(btn.dataset.deleteSub);
+    const edit = event.target.closest('[data-edit-sub]');
+    if (edit) { startEditing(edit.dataset.editSub); return; }
+    const del = event.target.closest('[data-delete-sub]');
+    if (del) deleteSubscriber(del.dataset.deleteSub);
   });
 
   // ------------------------------------------------------------- estoque ---

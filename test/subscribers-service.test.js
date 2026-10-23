@@ -108,6 +108,13 @@ function fakeDb() {
       return row;
     },
     async listSubscribers() { calls.push(['list']); return [...rows].reverse(); },
+    async updateSubscriber(_execute, id, value) {
+      calls.push(['update', id, value]);
+      const row = rows.find((r) => r.id === id);
+      if (!row) return null;
+      Object.assign(row, { name: value.name, phone: value.phone, email: value.email, address_street: value.street, address_complement: value.complement, address_number: value.number, address_neighborhood: value.neighborhood, address_city: value.city, address_state: value.state, address_cep: value.cep });
+      return row;
+    },
     async deleteSubscriber(_execute, id) { calls.push(['delete', id]); const i = rows.findIndex((r) => r.id === id); if (i === -1) return false; rows.splice(i, 1); return true; }
   };
 }
@@ -155,4 +162,36 @@ test('removeSubscriber deletes by id and tells whether something was removed', a
   await svc.createSubscriber(deps(db), { name: 'A', phone: '1133334444' });
   assert.equal(await svc.removeSubscriber(deps(db), 1), true);
   assert.equal(await svc.removeSubscriber(deps(db), 1), false);
+});
+
+test('updateSubscriber validates like a new registration, replaces the data and returns the API shape', async () => {
+  const db = fakeDb();
+  await svc.createSubscriber(deps(db), full);
+  db.calls.length = 0;
+  const updated = await svc.updateSubscriber(deps(db), 1, { name: ' Maria Souza ', phone: '(11) 3333-4444', email: '', street: '', complement: '', number: '', neighborhood: '', city: 'Campinas', state: 'sp', cep: '' });
+  assert.equal(db.calls[0][0], 'ensure');
+  assert.equal(db.calls[1][0], 'update');
+  assert.equal(db.calls[1][1], 1);
+  assert.equal(updated.id, 1);
+  assert.equal(updated.name, 'Maria Souza');
+  assert.equal(updated.phone, '1133334444');
+  assert.equal(updated.email, null, 'a field cleared in the form is cleared in the database');
+  assert.equal(updated.city, 'Campinas');
+  assert.equal(updated.state, 'SP');
+  assert.equal(updated.cep, null);
+  assert.equal(updated.createdAt, '2026-10-22T10:00:00.000Z');
+});
+
+test('updateSubscriber throws ValidationError for a bad form and never touches the database', async () => {
+  const db = fakeDb();
+  await assert.rejects(
+    () => svc.updateSubscriber(deps(db), 1, { name: '', phone: '123' }),
+    (err) => err instanceof svc.ValidationError && err.errors.sort().join() === 'name,phone'
+  );
+  assert.equal(db.calls.length, 0);
+});
+
+test('updateSubscriber returns null when the subscriber does not exist', async () => {
+  const db = fakeDb();
+  assert.equal(await svc.updateSubscriber(deps(db), 99, { name: 'A', phone: '1133334444' }), null);
 });
