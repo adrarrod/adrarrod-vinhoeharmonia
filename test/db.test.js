@@ -283,3 +283,62 @@ test('setSubscriberPasswordHash saves the new hash (null = back to the initial p
   const none = fakeExecute([{ rows: [] }]);
   assert.equal(await db.setSubscriberPasswordHash(none, 999, null), false);
 });
+
+// --- questionario do clube ---
+
+test('ensureQuestionnaireSchema creates the responses table tied to the subscriber (deleted together) and an index', async () => {
+  const execute = fakeExecute([{ rows: [] }, { rows: [] }]);
+  await db.ensureQuestionnaireSchema(execute);
+  const create = execute.calls[0].text;
+  assert.match(create, /CREATE TABLE IF NOT EXISTS questionnaire_responses/);
+  assert.match(create, /subscriber_id INTEGER NOT NULL REFERENCES subscribers\(id\) ON DELETE CASCADE/);
+  assert.match(create, /version TEXT NOT NULL/);
+  assert.match(create, /answers JSONB NOT NULL/);
+  assert.match(create, /created_at TIMESTAMPTZ NOT NULL DEFAULT now\(\)/);
+  assert.match(execute.calls[1].text, /CREATE INDEX IF NOT EXISTS .* ON questionnaire_responses \(subscriber_id\)/);
+});
+
+test('insertQuestionnaireResponse always adds a new row (history is kept) and sends the answers as JSON', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 3, subscriber_id: 7 }] }]);
+  const row = await db.insertQuestionnaireResponse(execute, 7, '1.0', { q2: ['Tintos'] });
+  assert.deepEqual(row, { id: 3, subscriber_id: 7 });
+  assert.match(execute.calls[0].text, /INSERT INTO questionnaire_responses/);
+  assert.match(execute.calls[0].text, /\$3::jsonb/);
+  assert.match(execute.calls[0].text, /RETURNING \*/);
+  assert.doesNotMatch(execute.calls[0].text, /UPDATE|DELETE/);
+  assert.deepEqual(execute.calls[0].params, [7, '1.0', '{"q2":["Tintos"]}']);
+});
+
+test('getLatestQuestionnaireResponse returns the newest answers of that subscriber, or null', async () => {
+  const found = fakeExecute([{ rows: [{ id: 9 }] }]);
+  assert.deepEqual(await db.getLatestQuestionnaireResponse(found, 7), { id: 9 });
+  assert.match(found.calls[0].text, /WHERE subscriber_id = \$1 ORDER BY id DESC LIMIT 1/);
+  assert.deepEqual(found.calls[0].params, [7]);
+  assert.equal(await db.getLatestQuestionnaireResponse(fakeExecute([{ rows: [] }]), 7), null);
+});
+
+test('listQuestionnaireHistory returns every submission of one subscriber, newest first', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 9 }, { id: 4 }] }]);
+  assert.deepEqual(await db.listQuestionnaireHistory(execute, 7), [{ id: 9 }, { id: 4 }]);
+  assert.match(execute.calls[0].text, /WHERE subscriber_id = \$1 ORDER BY id DESC/);
+});
+
+test('listLatestQuestionnaireResponses gives one row per subscriber (the newest) with name, phone, e-mail and submission counts', async () => {
+  const execute = fakeExecute([{ rows: [{ subscriber_id: 7, name: 'Maria', submissions: 2 }] }]);
+  const rows = await db.listLatestQuestionnaireResponses(execute);
+  assert.deepEqual(rows, [{ subscriber_id: 7, name: 'Maria', submissions: 2 }]);
+  const text = execute.calls[0].text;
+  assert.match(text, /DISTINCT ON \(subscriber_id\)/);
+  assert.match(text, /ORDER BY subscriber_id, id DESC/);
+  assert.match(text, /JOIN subscribers s ON s\.id = r\.subscriber_id/);
+  assert.match(text, /AS submissions/);
+  assert.match(text, /AS first_submitted_at/);
+});
+
+test('updateSubscriberEmail saves the e-mail of one subscriber and says whether they exist', async () => {
+  const done = fakeExecute([{ rows: [{ id: 7 }] }]);
+  assert.equal(await db.updateSubscriberEmail(done, 7, 'maria@x.com'), true);
+  assert.match(done.calls[0].text, /UPDATE subscribers SET email = \$2 WHERE id = \$1/);
+  assert.deepEqual(done.calls[0].params, [7, 'maria@x.com']);
+  assert.equal(await db.updateSubscriberEmail(fakeExecute([{ rows: [] }]), 99, 'a@b.co'), false);
+});

@@ -193,13 +193,48 @@ Cadastro de assinantes (feito por você no painel) e a **Área do assinante**
 - **Segurança:** 5 senhas erradas seguidas bloqueiam aquele acesso por 15 minutos.
   A sessão dura 7 dias e usa a mesma variável `ADMIN_SESSION_SECRET` do painel
   (nenhuma variável nova). Trocar ou redefinir a senha encerra as outras sessões.
-- **Conteúdo:** por enquanto a página mostra só "Em breve"; as informações
-  exclusivas entram na próxima etapa.
+- **Conteúdo:** além do questionário (abaixo), a página mostra "Em breve"; as
+  outras informações exclusivas entram em uma próxima etapa.
 - **Limite da Vercel:** o plano gratuito aceita 12 funções em `api/`, e agora há
   exatamente 12. Para criar mais uma API será preciso juntar duas existentes
   (como foi feito com `api/subscriber-area.js`, que atende login, sessão e senha).
 - **Ainda não existe:** cadastro pelo site pelo próprio cliente e envio de
   e-mail/WhatsApp.
+
+## Questionário do clube (Clube V&H Personnalité)
+
+Questionário de perfil de paladar, com 12 perguntas em 4 etapas.
+
+- **Quem responde:** o próprio assinante, **dentro da Área do assinante** (depois
+  do login). A página mostra o celular e o nome da conta (só leitura) e pede o
+  **e-mail** (obrigatório): ele é gravado no cadastro e não pode ser de outro
+  assinante. Ninguém responde por outra pessoa: o servidor usa sempre o assinante
+  da sessão, nunca um número digitado na página.
+- **Página:** `/questionario.html`, aberta pelo cartão "Clube V&H Personnalité"
+  da área do assinante. Tem introdução, barra de progresso, Voltar/Continuar,
+  revisão com "Alterar" e envio. As obrigatórias são conferidas a cada etapa e
+  de novo no servidor.
+- **Perguntas e textos:** ficam em `js/questionario.js`, copiados do arquivo
+  `questionario_clube_vh_personnalite.json` sem alteração (versão **1.0**). Para
+  mudar uma pergunta no futuro, crie uma versão nova (1.1, 2.0…); as respostas
+  antigas continuam guardadas com a versão em que foram dadas.
+- **Respostas:** tabela `questionnaire_responses` (criada sozinha). Cada envio é
+  uma linha nova, com versão e data; as respostas "atuais" são a mais recente e as
+  anteriores ficam como histórico. Apagar um assinante apaga as respostas dele.
+- **No painel (`/admin.html`, seção Assinantes):** cada cartão mostra
+  "Questionário: respondido em … (n envios)" ou "pendente". **Ver respostas** abre
+  as respostas agrupadas por etapa (a atual e as anteriores).
+- **Exportar:** botão **Exportar respostas do questionário (CSV)**. Baixa um
+  arquivo com uma linha por assinante que respondeu (resposta mais recente) e uma
+  coluna por pergunta. Abre direto no Excel em português (acentos e `;`).
+- **Privacidade:** a página explica para que as respostas são usadas. Ainda não
+  existe uma Política de Privacidade no site: quando ela for publicada, é só
+  colocar o link no comentário marcado em `questionario.html`.
+- **Ainda não existe:** convite com link individual, cadastro de novos assinantes
+  pelo site, e a curadoria dos dois vinhos por assinante (será registrada no
+  painel depois). Não há recomendação automática nem IA.
+- **Limite da Vercel:** continua em 12 funções em `api/`: o questionário usa as
+  APIs que já existiam (`api/subscriber-area.js` e `api/subscribers.js`).
 
 ## Coleções com banner (ex.: Halloween)
 

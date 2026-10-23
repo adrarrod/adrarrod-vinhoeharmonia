@@ -27,12 +27,25 @@
     loginSection.hidden = false;
   }
 
-  function showHome(subscriber) {
+  function showHome(subscriber, questionnaire) {
     loading.hidden = true;
     loginSection.hidden = true;
     home.hidden = false;
     $('area-name').textContent = subscriber.name;
     $('area-initial-warning').hidden = !subscriber.usingInitialPassword;
+    showQuestionnaireCard(questionnaire);
+  }
+
+  // Cartão do questionário do clube (some se a API não trouxe o resumo).
+  function showQuestionnaireCard(questionnaire) {
+    const card = $('area-questionnaire');
+    card.hidden = !questionnaire;
+    if (!questionnaire) return;
+    const when = questionnaire.submittedAt ? new Date(questionnaire.submittedAt).toLocaleDateString('pt-BR') : '';
+    $('area-questionnaire-text').textContent = questionnaire.answered
+      ? 'Você respondeu em ' + when + '. Se o seu gosto mudou, pode atualizar suas respostas quando quiser.'
+      : 'Conte um pouco sobre o seu paladar para escolhermos vinhos que combinem com você. Leva poucos minutos.';
+    $('area-questionnaire-link').textContent = questionnaire.answered ? 'Atualizar minhas respostas' : 'Responder o questionário';
   }
 
   function waitMessage(minutes) {
@@ -54,7 +67,8 @@
       const res = await fetch(API, { credentials: 'same-origin', cache: 'no-store' });
       if (res.status === 401) { showLogin(); return; }
       if (!res.ok) throw new Error('http ' + res.status);
-      showHome((await res.json()).subscriber);
+      const data = await res.json();
+      showHome(data.subscriber, data.questionnaire);
     } catch (err) {
       showLogin();
       showError(loginError, 'Não foi possível carregar agora. Tente de novo em instantes.');
@@ -75,7 +89,7 @@
       const res = await post('login', { login, password });
       if (res.status === 200) {
         $('area-login-password').value = '';
-        showHome((await res.json()).subscriber);
+        await init(); // carrega a área já com o resumo do questionário
         return;
       }
       if (res.status === 429) {

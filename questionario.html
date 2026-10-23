@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Questionário do clube — Vinho &amp; Harmonia</title>
+  <meta name="description" content="Questionário de perfil de paladar do Clube V&amp;H Personnalité.">
+  <meta name="theme-color" content="#7a1f3d">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ============================================================== header -->
+  <header class="site-header">
+    <div class="wrap header-top">
+      <a class="brand brand-link" href="index.html">
+        <div class="brand-mark" aria-hidden="true">V&amp;H</div>
+        <div class="brand-text">
+          <h1>Vinho <span class="amp">&amp;</span> Harmonia</h1>
+          <p class="brand-slogan">As melhores opções de vinho para você</p>
+        </div>
+      </a>
+      <a class="header-link" href="area-assinante.html">← Minha área</a>
+    </div>
+  </header>
+
+  <!-- ================================================================ main -->
+  <main class="wrap quiz-main">
+
+    <p class="orders-status" id="quiz-loading">Carregando…</p>
+
+    <!-- Sem sessão: o questionário só abre para quem entrou na própria área. -->
+    <section class="fieldset-block" id="quiz-denied" hidden>
+      <div class="block-title">Clube V&amp;H Personnalité</div>
+      <p id="quiz-denied-text">Para responder ao questionário, entre primeiro na sua área do assinante.</p>
+      <a class="btn btn-gold btn-block" href="area-assinante.html" style="margin-top:12px">Entrar na minha área</a>
+    </section>
+
+    <div id="quiz-app" hidden>
+
+      <div class="quiz-progress" id="quiz-progress" hidden>
+        <div class="quiz-progress-label" id="quiz-progress-label"></div>
+        <div class="quiz-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="quiz-progress-bar"><span id="quiz-progress-fill"></span></div>
+      </div>
+
+      <!-- Introdução + dados de quem responde -->
+      <section id="quiz-intro" hidden>
+        <h2 id="quiz-title"></h2>
+        <p class="quiz-lead" id="quiz-lead"></p>
+        <p class="quiz-redo" id="quiz-redo" hidden></p>
+
+        <div class="fieldset-block">
+          <div class="block-title">Seus dados</div>
+          <div class="field">
+            <label for="quiz-phone">Celular</label>
+            <input id="quiz-phone" type="text" readonly>
+          </div>
+          <div class="field">
+            <label for="quiz-name">Nome</label>
+            <input id="quiz-name" type="text" readonly>
+          </div>
+          <div class="field">
+            <label for="quiz-email">E-mail *</label>
+            <input id="quiz-email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254">
+            <span class="field-hint">Usamos para complementar o seu cadastro. Também serve para entrar na sua área.</span>
+          </div>
+        </div>
+
+        <p class="quiz-privacy field-hint">
+          <strong>Para que usamos suas respostas?</strong> Somente para personalizar a escolha dos vinhos do Clube V&amp;H Personnalité e as sugestões que enviaremos a você.
+          Só você e a equipe da Vinho &amp; Harmonia têm acesso. Se quiser corrigir ou apagar seus dados, é só falar com a loja.
+        </p>
+        <!-- Quando a Política de Privacidade estiver publicada, linkar aqui:
+             <a href="privacidade.html">Política de Privacidade</a> -->
+
+        <div class="form-errors" id="quiz-intro-error" hidden></div>
+        <button class="btn btn-gold btn-block" type="button" id="quiz-start" style="margin-top:12px">Começar</button>
+      </section>
+
+      <!-- Uma etapa por vez -->
+      <section id="quiz-step" hidden>
+        <h2 id="quiz-step-title"></h2>
+        <p class="quiz-lead" id="quiz-step-desc"></p>
+        <div id="quiz-questions"></div>
+        <div class="form-errors" id="quiz-step-error" hidden></div>
+        <div class="quiz-nav">
+          <button class="btn btn-ghost" type="button" id="quiz-back">Voltar</button>
+          <button class="btn btn-gold" type="button" id="quiz-next">Continuar</button>
+        </div>
+      </section>
+
+      <!-- Revisão antes de enviar -->
+      <section id="quiz-review" hidden>
+        <h2>Revise suas respostas</h2>
+        <p class="quiz-lead">Confira com calma. Se quiser mudar algo, toque em &ldquo;Alterar&rdquo;.</p>
+        <div id="quiz-review-list"></div>
+        <div class="form-errors" id="quiz-review-error" hidden></div>
+        <div class="quiz-nav">
+          <button class="btn btn-ghost" type="button" id="quiz-review-back">Voltar</button>
+          <button class="btn btn-gold" type="button" id="quiz-submit">Enviar respostas</button>
+        </div>
+      </section>
+
+      <!-- Confirmação -->
+      <section id="quiz-done" hidden>
+        <h2>Obrigado!</h2>
+        <p class="quiz-lead" id="quiz-done-text">Recebemos as suas respostas. Elas vão nos ajudar a escolher vinhos que combinem com você.</p>
+        <p class="quiz-lead">Você pode voltar aqui quando quiser para rever e atualizar o que respondeu.</p>
+        <a class="btn btn-gold btn-block" href="area-assinante.html">Voltar para minha área</a>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ============================================================== footer -->
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <h3>Endereço</h3>
+          <p>AV. Engenheiro Tomás Magalhães, 225<br>São Paulo / SP<br>CNPJ 56.379.529/0001-12</p>
+        </div>
+        <div>
+          <h3>Horário</h3>
+          <p>Aberto todos os dias, 24 horas por dia.<br>Pedidos pelo site a qualquer hora.</p>
+        </div>
+        <div>
+          <h3>Contato</h3>
+          <p>(11) 95579-3424<br>contato@vinhoharmonia.com.br</p>
+        </div>
+      </div>
+      <p class="age-warning">Venda proibida para menores de 18 anos</p>
+      <p style="text-align:center;margin-top:10px;font-size:.78rem">Beba com moderação. Se beber, não dirija.</p>
+    </div>
+  </footer>
+
+  <script src="js/questionario.js"></script>
+  <script src="js/questionario-page.js"></script>
+</body>
+</html>

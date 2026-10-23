@@ -107,6 +107,7 @@
       </form>
 
       <h3 class="sub-list-title">Cadastrados <span id="sub-count"></span></h3>
+      <p class="sub-export"><a class="btn btn-ghost" id="sub-export" href="/api/subscribers?export=csv">Exportar respostas do questionário (CSV)</a></p>
       <input type="search" id="sub-filter" class="search-input stock-filter" placeholder="Filtrar por nome, telefone ou e-mail…" aria-label="Filtrar assinantes" autocomplete="off">
       <div class="sub-list" id="sub-list"></div>
     </section>
@@ -133,6 +134,7 @@
   </main>
 
   <script src="js/catalog.js"></script>
+  <script src="js/questionario.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>

@@ -252,6 +252,7 @@
   };
   let subscribers = [];
   let editingId = null; // id do assinante em edição; null = cadastrando um novo
+  let quizBySubscriber = {}; // id do assinante -> resumo do questionário (quem já respondeu)
 
   function formatPhone(digits) {
     const d = String(digits || '').replace(/\D/g, '');
@@ -347,6 +348,56 @@
     renderSubscribers();
   }
 
+  // Resposta do questionário em texto (listas viram "a, b"; sem resposta = "—").
+  function quizAnswerHtml(value) {
+    const text = Array.isArray(value) ? value.join(', ') : (typeof value === 'string' ? value.trim() : '');
+    return text ? '<div class="sub-ans-a">' + escapeHtml(text) + '</div>' : '<div class="sub-ans-a is-empty">Sem resposta</div>';
+  }
+
+  // Um envio do questionário, agrupado por etapa.
+  function quizSubmissionHtml(submission) {
+    return Questionario.STEPS.map((step) =>
+      '<div class="sub-ans-step"><strong>' + escapeHtml(step.titulo) + '</strong>' +
+        step.perguntas.map((q) => '<div class="sub-ans-q">' + escapeHtml(q.texto) + '</div>' + quizAnswerHtml(submission.answers[q.id])).join('') +
+      '</div>'
+    ).join('');
+  }
+
+  function quizDetailHtml(detail) {
+    if (!detail.submissions.length) return '<p class="sub-line">Ainda não respondeu.</p>';
+    return detail.submissions.map((sub, i) =>
+      '<details' + (i === 0 ? ' open' : '') + '><summary>' + (i === 0 ? 'Resposta atual' : 'Resposta anterior') +
+        ' — ' + formatDate(sub.submittedAt) + ' · v' + escapeHtml(sub.version) + '</summary>' + quizSubmissionHtml(sub) + '</details>'
+    ).join('');
+  }
+
+  async function toggleSubscriberAnswers(id, button) {
+    const box = subList.querySelector('[data-answers-for="' + id + '"]');
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; button.textContent = 'Ver respostas'; return; }
+    box.hidden = false;
+    button.textContent = 'Ocultar respostas';
+    if (box.dataset.loaded) return;
+    box.textContent = 'Carregando…';
+    try {
+      const res = await fetch('/api/subscribers?view=questionnaire&id=' + encodeURIComponent(id), { credentials: 'same-origin', cache: 'no-store' });
+      if (res.status === 401) { showLogin(); return; }
+      if (!res.ok) throw new Error('http ' + res.status);
+      box.innerHTML = quizDetailHtml(await res.json());
+      box.dataset.loaded = '1';
+    } catch (err) {
+      box.textContent = 'Não foi possível carregar as respostas agora.';
+    }
+  }
+
+  function quizLineHtml(s) {
+    const q = quizBySubscriber[s.id];
+    if (!q) return '<p class="sub-line sub-quiz is-pending">Questionário: pendente</p>';
+    return '<p class="sub-line sub-quiz">Questionário: respondido em ' + formatDate(q.submittedAt) +
+      (q.submissions > 1 ? ' (' + q.submissions + ' envios)' : '') +
+      ' <button class="btn btn-ghost sub-answers-btn" type="button" data-answers-sub="' + escapeHtml(s.id) + '">Ver respostas</button></p>';
+  }
+
   function renderSubscriber(s) {
     const contact = [formatPhone(s.phone), s.email].filter(Boolean).map(escapeHtml).join(' · ');
     const address = subscriberAddress(s);
@@ -361,8 +412,10 @@
           '</span>' +
         '</div>' +
         '<p class="sub-line">' + contact + '</p>' +
+        quizLineHtml(s) +
         (address ? '<p class="sub-line">' + escapeHtml(address) + '</p>' : '') +
         '<p class="sub-date">Cadastrado em ' + formatDate(s.createdAt) + '</p>' +
+        '<div class="sub-answers" data-answers-for="' + escapeHtml(s.id) + '" hidden></div>' +
       '</article>'
     );
   }
@@ -380,12 +433,23 @@
       : '<p class="orders-empty">' + (subscribers.length ? 'Nenhum assinante encontrado.' : 'Nenhum assinante cadastrado ainda.') + '</p>';
   }
 
+  // Quem já respondeu ao questionário. Se falhar, a lista abre mesmo assim.
+  async function loadQuestionnaireSummary() {
+    quizBySubscriber = {};
+    try {
+      const res = await fetch('/api/subscribers?view=questionnaire', { credentials: 'same-origin', cache: 'no-store' });
+      if (!res.ok) return;
+      ((await res.json()).responses || []).forEach((r) => { quizBySubscriber[r.subscriberId] = r; });
+    } catch (err) { /* sem resumo: todos aparecem como pendentes */ }
+  }
+
   async function loadSubscribers() {
     try {
       const res = await fetch('/api/subscribers', { credentials: 'same-origin', cache: 'no-store' });
       if (res.status === 401) { showLogin(); return; }
       if (!res.ok) throw new Error('http ' + res.status);
       subscribers = (await res.json()).subscribers || [];
+      await loadQuestionnaireSummary();
       renderSubscribers();
     } catch (err) {
       subCount.textContent = '';
@@ -479,6 +543,8 @@
   subList.addEventListener('click', (event) => {
     const edit = event.target.closest('[data-edit-sub]');
     if (edit) { startEditing(edit.dataset.editSub); return; }
+    const answers = event.target.closest('[data-answers-sub]');
+    if (answers) { toggleSubscriberAnswers(answers.dataset.answersSub, answers); return; }
     const reset = event.target.closest('[data-reset-sub]');
     if (reset) { resetSubscriberPassword(reset.dataset.resetSub); return; }
     const del = event.target.closest('[data-delete-sub]');
