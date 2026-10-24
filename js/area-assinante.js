@@ -28,14 +28,106 @@
     loginSection.hidden = false;
   }
 
-  function showHome(subscriber, questionnaire) {
+  function showHome(subscriber, questionnaire, subscription, profile) {
     loading.hidden = true;
     loginSection.hidden = true;
     home.hidden = false;
     $('area-name').textContent = subscriber.name;
     $('area-initial-warning').hidden = !subscriber.usingInitialPassword;
+    showSubscriptionCard(subscription);
+    showProfileCard(subscriber, profile);
     showQuestionnaireCard(questionnaire);
     loadWines();
+  }
+
+  // ---------------------------------------------------------- minha assinatura --
+  function dayLabel(iso) {
+    const d = iso ? new Date(iso) : null;
+    return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString('pt-BR') : '';
+  }
+
+  // Situação da assinatura; sem assinatura, o caminho para contratar. O link de
+  // pagamento só vem do servidor enquanto há pagamento a fazer, e só abre se for https.
+  function showSubscriptionCard(subscription) {
+    const label = $('area-sub-status');
+    const text = $('area-sub-text');
+    const action = $('area-sub-action');
+    action.hidden = true;
+    action.removeAttribute('target');
+    action.removeAttribute('rel');
+    label.className = 'area-sub-status';
+
+    if (!subscription) {
+      label.textContent = 'Você ainda não tem uma assinatura';
+      text.textContent = 'Conheça o Clube V&H Personnalité: dois vinhos por mês, escolhidos para o seu paladar.';
+      action.textContent = 'Conhecer o clube';
+      action.href = 'clube.html';
+      action.hidden = false;
+      $('area-subscription').hidden = false;
+      return;
+    }
+
+    const price = window.Clube.PLAN.name + ' · ' + (subscription.priceCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + ' por mês. ';
+    label.textContent = subscription.statusLabel;
+    const payLink = subscription.paymentLink && window.Clube.isValidPaymentLink(subscription.paymentLink) ? subscription.paymentLink : null;
+    const showPayment = (waitingText) => {
+      if (payLink) {
+        action.textContent = 'Ir para o pagamento';
+        action.href = payLink;
+        action.target = '_blank';
+        action.rel = 'noopener noreferrer';
+        action.hidden = false;
+      } else {
+        text.textContent += waitingText;
+      }
+    };
+
+    if (subscription.status === 'awaiting_payment') {
+      text.textContent = price + 'Recebemos a sua solicitação. Assim que o pagamento for confirmado, sua assinatura será ativada.';
+      showPayment(' Em breve você receberá no seu e-mail as orientações para pagar.');
+    } else if (subscription.status === 'active') {
+      label.classList.add('is-active');
+      text.textContent = price + 'Sua assinatura está ativa' + (subscription.activatedAt ? ' desde ' + dayLabel(subscription.activatedAt) : '') + '.';
+    } else if (subscription.status === 'payment_pending') {
+      text.textContent = price + 'Há um pagamento pendente. Se você já pagou, fale com a loja.';
+      showPayment('');
+    } else if (subscription.status === 'suspended') {
+      text.textContent = price + 'Sua assinatura está temporariamente suspensa. Fale com a loja para saber mais.';
+    } else {
+      label.classList.add('is-closed');
+      text.textContent = 'Esta assinatura foi encerrada. Quer voltar ao clube? É só fazer uma nova solicitação.';
+      action.textContent = 'Conhecer o clube';
+      action.href = 'clube.html';
+      action.hidden = false;
+    }
+    $('area-subscription').hidden = false;
+  }
+
+  // --------------------------------------------------------------- meus dados --
+  function formatPhone(digits) {
+    const d = String(digits || '').replace(/\D/g, '');
+    if (d.length === 11) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+    if (d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return d;
+  }
+
+  function formatAddress(a) {
+    if (!a) return 'Ainda não informado';
+    const line = [a.street, a.number].filter(Boolean).join(', ') + (a.complement ? ' — ' + a.complement : '');
+    const cep = a.cep && a.cep.length === 8 ? a.cep.slice(0, 5) + '-' + a.cep.slice(5) : a.cep;
+    return [line, a.neighborhood, [a.city, a.state].filter(Boolean).join('/'), cep ? 'CEP ' + cep : '', a.reference ? 'Ref.: ' + a.reference : ''].filter(Boolean).join(' · ');
+  }
+
+  function showProfileCard(subscriber, profile) {
+    const rows = [
+      ['Nome', subscriber.name],
+      ['E-mail', subscriber.email || 'Ainda não informado'],
+      ['Celular', formatPhone(subscriber.phone)],
+      ['CPF', profile && profile.cpfMasked ? profile.cpfMasked : 'Ainda não informado'],
+      ['Endereço de entrega', formatAddress(profile && profile.address)]
+    ];
+    $('area-profile-list').innerHTML = rows.map((r) => '<div><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>').join('');
+    $('area-profile').hidden = false;
   }
 
   // ------------------------------------------------------ vinhos do clube --
@@ -186,7 +278,7 @@
       if (res.status === 401) { showLogin(); return; }
       if (!res.ok) throw new Error('http ' + res.status);
       const data = await res.json();
-      showHome(data.subscriber, data.questionnaire);
+      showHome(data.subscriber, data.questionnaire, data.subscription, data.profile);
     } catch (err) {
       showLogin();
       showError(loginError, 'Não foi possível carregar agora. Tente de novo em instantes.');

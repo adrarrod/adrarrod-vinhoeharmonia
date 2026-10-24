@@ -53,6 +53,10 @@
 
         <button class="btn btn-gold btn-block" type="submit" id="area-login-submit" style="margin-top:12px">Entrar</button>
       </form>
+      <div class="area-join">
+        <p><strong>Ainda não é assinante?</strong> Conheça o Clube V&amp;H Personnalité: dois vinhos por mês, escolhidos para o seu paladar.</p>
+        <a class="btn btn-gold btn-block" href="clube.html">Conhecer o clube</a>
+      </div>
       <p class="field-hint area-help">Primeiro acesso? Use a senha inicial que a loja informou a você. Esqueceu a senha? Fale com a loja (contato no rodapé) e ela volta para a inicial.</p>
     </section>
 
@@ -67,6 +71,13 @@
         <strong>Você ainda usa a senha inicial.</strong> Para sua segurança, troque por uma senha só sua, na seção &ldquo;Alterar senha&rdquo; abaixo.
       </div>
 
+      <section class="fieldset-block" id="area-subscription" hidden>
+        <div class="block-title">Minha assinatura</div>
+        <p class="area-sub-status" id="area-sub-status"></p>
+        <p class="area-soon" id="area-sub-text"></p>
+        <a class="btn btn-gold btn-block" id="area-sub-action" href="clube.html" hidden style="margin-top:12px">Ir para o pagamento</a>
+      </section>
+
       <section class="fieldset-block" id="area-questionnaire" hidden>
         <div class="block-title">Clube V&amp;H Personnalité</div>
         <p class="area-soon" id="area-questionnaire-text"></p>
@@ -77,6 +88,12 @@
         <h2 class="area-section-title">Meus vinhos do clube</h2>
         <p class="orders-status" id="area-wines-status" hidden></p>
         <div id="area-wines-list"></div>
+      </section>
+
+      <section class="fieldset-block" id="area-profile" hidden>
+        <div class="block-title">Meus dados</div>
+        <dl class="area-data" id="area-profile-list"></dl>
+        <p class="field-hint">Para alterar seus dados, fale com a loja.</p>
       </section>
 
       <section class="fieldset-block" id="area-password">
@@ -135,6 +152,7 @@
 
   <script src="js/catalog.js"></script>
   <script src="js/club.js"></script>
+  <script src="js/clube.js"></script>
   <script src="js/area-assinante.js"></script>
 </body>
 </html>

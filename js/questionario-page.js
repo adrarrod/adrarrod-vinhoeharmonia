@@ -72,83 +72,23 @@
 
   // ---------------------------------------------------------------- etapas --
 
-  function renderQuestion(q) {
-    const current = answers[q.id];
-    let body = '';
-
-    if (q.tipo === 'texto_livre') {
-      const text = typeof current === 'string' ? current : '';
-      body =
-        '<div class="field"><textarea class="quiz-text" data-q="' + q.id + '" rows="4" maxlength="' + q.limite_caracteres + '" placeholder="' + escapeHtml(q.placeholder || '') + '" aria-label="' + escapeHtml(q.texto) + '">' + escapeHtml(text) + '</textarea></div>' +
-        '<span class="field-hint quiz-counter" data-counter="' + q.id + '">' + text.length + ' / ' + q.limite_caracteres + '</span>';
-    } else {
-      const multi = q.tipo === 'multipla';
-      const selected = multi ? (Array.isArray(current) ? current : []) : [current];
-      body = '<div class="quiz-options">' + q.opcoes.map((option, i) =>
-        '<label class="quiz-option">' +
-          '<input type="' + (multi ? 'checkbox' : 'radio') + '" name="' + q.id + '" value="' + escapeHtml(option) + '" data-q="' + q.id + '" data-i="' + i + '"' + (selected.includes(option) ? ' checked' : '') + '>' +
-          '<span>' + escapeHtml(option) + '</span>' +
-        '</label>'
-      ).join('') + '</div>';
-    }
-
-    return (
-      '<fieldset class="quiz-question" id="quiz-q-' + q.id + '">' +
-        '<legend>' + escapeHtml(q.texto) + (q.obrigatoria ? ' <span class="quiz-req" aria-hidden="true">*</span>' : '') + '</legend>' +
-        (q.tipo === 'multipla' ? '<p class="field-hint">Pode marcar mais de uma opção.</p>' : '') +
-        body +
-      '</fieldset>'
-    );
-  }
-
   function renderStep(index) {
     const step = Q.STEPS[index];
     $('quiz-step-title').textContent = step.titulo;
     $('quiz-step-desc').textContent = step.descricao;
-    $('quiz-questions').innerHTML = step.perguntas.map(renderQuestion).join('');
+    $('quiz-questions').innerHTML = step.perguntas.map((q) => window.QuestionarioUI.questionHtml(q, answers)).join('');
     showBox($('quiz-step-error'), '');
     $('quiz-back').textContent = fromReview ? 'Cancelar' : 'Voltar';
     $('quiz-next').textContent = fromReview ? 'Voltar à revisão' : (index === STEP_COUNT - 1 ? 'Revisar' : 'Continuar');
   }
 
-  // Mantém as caixinhas da tela iguais à seleção (a opção exclusiva desmarca as outras).
-  function syncChecks(q) {
-    const selected = answers[q.id] || [];
-    document.querySelectorAll('input[data-q="' + q.id + '"]').forEach((input) => {
-      input.checked = selected.includes(input.value);
-    });
-  }
-
-  $('quiz-questions').addEventListener('change', (event) => {
-    const input = event.target;
-    const q = Q.findQuestion(input.dataset.q);
-    if (!q || !(input instanceof HTMLInputElement)) return;
-    if (q.tipo === 'multipla') {
-      answers[q.id] = Q.toggleOption(q, answers[q.id], input.value);
-      syncChecks(q);
-    } else {
-      answers[q.id] = input.value;
-    }
-    const block = $('quiz-q-' + q.id);
-    if (block) block.classList.remove('has-error');
-  });
-
-  $('quiz-questions').addEventListener('input', (event) => {
-    const area = event.target;
-    if (!(area instanceof HTMLTextAreaElement)) return;
-    const q = Q.findQuestion(area.dataset.q);
-    if (!q) return;
-    answers[q.id] = area.value;
-    const counter = document.querySelector('[data-counter="' + q.id + '"]');
-    if (counter) counter.textContent = area.value.length + ' / ' + q.limite_caracteres;
-  });
+  window.QuestionarioUI.bind($('quiz-questions'), () => answers);
 
   function nextFromStep() {
     const index = view;
     const missing = Q.missingRequired(index, answers);
-    document.querySelectorAll('.quiz-question').forEach((el) => el.classList.remove('has-error'));
+    window.QuestionarioUI.markErrors(missing);
     if (missing.length) {
-      missing.forEach((id) => { const el = $('quiz-q-' + id); if (el) el.classList.add('has-error'); });
       showBox($('quiz-step-error'), missing.length === 1
         ? 'Falta responder uma pergunta (marcada com *).'
         : 'Faltam ' + missing.length + ' perguntas (marcadas com *).');

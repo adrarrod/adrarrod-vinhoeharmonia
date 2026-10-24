@@ -28,6 +28,12 @@
   const subFilter = document.getElementById('sub-filter');
 
   const stockSection = document.getElementById('admin-stock');
+
+  const subsSection = document.getElementById('admin-subscriptions');
+  const subsStatus = document.getElementById('subs-status');
+  const subsList = document.getElementById('subs-list');
+  const subsFilters = document.getElementById('subs-filters');
+  const subsBadge = document.getElementById('subs-badge');
   const stockStatus = document.getElementById('stock-status');
   const stockList = document.getElementById('stock-list');
   const stockFilter = document.getElementById('stock-filter');
@@ -69,6 +75,7 @@
     ordersSection.hidden = true;
     shippingSection.hidden = true;
     subscribersSection.hidden = true;
+    subsSection.hidden = true;
     stockSection.hidden = true;
   }
 
@@ -77,6 +84,7 @@
     ordersSection.hidden = false;
     shippingSection.hidden = false;
     subscribersSection.hidden = false;
+    subsSection.hidden = false;
     stockSection.hidden = false;
   }
 
@@ -229,6 +237,7 @@
       renderOrders(orders);
       loadStock();
       loadSubscribers();
+      loadSubscriptions();
       if (!showMelhorEnvioNotice()) {
         loadMelhorEnvioStatus();
       }
@@ -238,6 +247,226 @@
       setOrdersStatus('Falha de conexão ao buscar pedidos. Verifique sua internet e tente novamente.', true);
     }
   }
+
+  // ------------------------------------------------- assinaturas do clube ---
+  let subscriptions = [];
+  let subscriptionCounts = {};
+  let subscriptionBySubscriber = {}; // id do assinante -> assinatura mais recente
+  let subsFilterStatus = 'awaiting_payment';
+  const SUBS_FILTERS = [
+    ['awaiting_payment', 'Aguardando pagamento'], ['active', 'Ativas'], ['payment_pending', 'Pendentes'],
+    ['cancelled', 'Canceladas'], ['all', 'Todas']
+  ];
+
+  function setSubsStatus(message, isError) {
+    subsStatus.hidden = !message;
+    subsStatus.textContent = message || '';
+    subsStatus.classList.toggle('card-msg', !!isError);
+  }
+
+  function cpfLabel(digits) {
+    const d = String(digits || '').replace(/\D/g, '');
+    return d.length === 11 ? d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6, 9) + '-' + d.slice(9) : (d || '—');
+  }
+
+  function birthLabel(iso) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? iso.slice(8) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '—';
+  }
+
+  function subsAddress(a) {
+    const line = [a.street, a.number].filter(Boolean).join(', ') + (a.complement ? ' — ' + a.complement : '');
+    return [line, a.neighborhood, [a.city, a.state].filter(Boolean).join('/'), a.cep ? 'CEP ' + formatCep(a.cep) : '', a.reference ? 'Ref.: ' + a.reference : ''].filter(Boolean).join(' · ');
+  }
+
+  // Mensagem pronta com o link de pagamento. Nunca leva CPF, senha ou outro dado sensível.
+  function paymentMessage(s) {
+    const first = String(s.name || '').split(' ')[0];
+    return 'Olá, ' + first + '!\n\n' +
+      'Recebemos sua solicitação de assinatura do ' + window.Clube.PLAN.name + ' (R$ 120,00 por mês).\n\n' +
+      'Para ativar a sua assinatura, faça o pagamento por este link:\n' + s.paymentLink + '\n\n' +
+      'Assim que o pagamento for confirmado, sua assinatura será ativada.\n\n' +
+      'Qualquer dúvida, é só falar com a gente.\nVinho & Harmonia';
+  }
+
+  function subscriptionCardHtml(s) {
+    const id = escapeHtml(s.id);
+    const due = s.status === 'awaiting_payment' || s.status === 'payment_pending';
+    let pay = '';
+    if (due) {
+      pay = '<div class="subs-pay">' +
+        '<input type="url" class="subs-link" placeholder="Cole aqui o link de pagamento (https://…)" value="' + escapeHtml(s.paymentLink || '') + '" aria-label="Link de pagamento de ' + escapeHtml(s.name) + '">' +
+        '<div class="subs-row"><button class="btn btn-gold" type="button" data-subs-link="' + id + '">Salvar link</button>';
+      if (s.paymentLink) {
+        const subject = encodeURIComponent('Clube V&H Personnalité — link de pagamento');
+        const body = encodeURIComponent(paymentMessage(s));
+        pay += (s.email ? '<a class="btn btn-ghost" href="mailto:' + escapeHtml(s.email) + '?subject=' + subject + '&body=' + body + '">Enviar por e-mail</a>' : '') +
+          '<a class="btn btn-ghost" target="_blank" rel="noopener noreferrer" href="https://wa.me/55' + escapeHtml(String(s.phone).replace(/\D/g, '')) + '?text=' + body + '">Enviar por WhatsApp</a>' +
+          '<button class="btn btn-ghost" type="button" data-subs-sent="' + id + '">Marcar como enviado</button>';
+      }
+      pay += '</div>' + (s.paymentLinkSentAt ? '<span class="subs-sent">Link enviado em ' + formatDate(s.paymentLinkSentAt) + '</span>' : '') + '</div>';
+    }
+
+    const actions = [];
+    if (s.status === 'awaiting_payment' || s.status === 'payment_pending' || s.status === 'suspended') actions.push(['active', 'Confirmar pagamento', 'btn-gold']);
+    if (s.status === 'active') actions.push(['payment_pending', 'Marcar pagamento pendente', 'btn-ghost']);
+    if (s.status !== 'cancelled') actions.push(['cancelled', 'Cancelar assinatura', 'btn-ghost']);
+
+    return (
+      '<article class="subs-card" data-subs-card="' + id + '">' +
+        '<div class="subs-head"><span class="subs-name">' + escapeHtml(s.name) + '</span><span class="subs-chip is-' + escapeHtml(s.status) + '">' + escapeHtml(s.statusLabel) + '</span></div>' +
+        '<p class="subs-line">' + escapeHtml(formatPhone(s.phone)) + ' · ' + escapeHtml(s.email || 'sem e-mail') + '</p>' +
+        '<p class="subs-line">CPF ' + escapeHtml(cpfLabel(s.cpf)) + ' · Nascimento ' + escapeHtml(birthLabel(s.birthDate)) + '</p>' +
+        '<p class="subs-line">' + escapeHtml(subsAddress(s.address) || 'Endereço não informado') + (s.outsideSaoPaulo ? ' <span class="subs-warn">· fora de São Paulo</span>' : '') + '</p>' +
+        '<p class="subs-line">' + escapeHtml(window.Clube.PLAN.name) + ' · R$ 120,00/mês · Solicitada em ' + formatDate(s.requestedAt) +
+          (s.activatedAt ? ' · Ativada em ' + formatDate(s.activatedAt) : '') +
+          ' · Questionário: ' + (s.questionnaireAnswered ? 'respondido' : 'pendente') + '</p>' +
+        pay +
+        '<div class="subs-row" style="margin-top:10px">' +
+          actions.map((a) => '<button class="btn ' + a[2] + '" type="button" data-subs-status="' + id + '" data-to="' + a[0] + '">' + a[1] + '</button>').join('') +
+          '<button class="btn btn-ghost" type="button" data-subs-history="' + id + '">Histórico</button>' +
+        '</div>' +
+        '<div class="subs-history" data-history-for="' + id + '" hidden></div>' +
+      '</article>'
+    );
+  }
+
+  function renderSubscriptions() {
+    const counts = subscriptionCounts;
+    subsFilters.innerHTML = SUBS_FILTERS.map(([key, label]) => {
+      const n = key === 'all' ? counts.total : counts[key];
+      return '<button class="btn btn-ghost subs-filter' + (subsFilterStatus === key ? ' is-on' : '') + '" type="button" data-subs-filter="' + key + '">' + label + ' (' + (n || 0) + ')</button>';
+    }).join('');
+    const waiting = counts.awaiting_payment || 0;
+    subsBadge.hidden = !waiting;
+    subsBadge.textContent = waiting + (waiting === 1 ? ' nova' : ' novas');
+
+    const shown = subscriptions.filter((s) => subsFilterStatus === 'all' || s.status === subsFilterStatus);
+    subsList.innerHTML = shown.length
+      ? shown.map(subscriptionCardHtml).join('')
+      : '<p class="orders-empty">Nenhuma solicitação nesta situação.</p>';
+  }
+
+  async function loadSubscriptions() {
+    try {
+      const res = await fetch('/api/subscribers?view=subscriptions', { credentials: 'same-origin', cache: 'no-store' });
+      if (res.status === 401) { showLogin(); return; }
+      if (!res.ok) throw new Error('http ' + res.status);
+      const data = await res.json();
+      subscriptions = data.subscriptions || [];
+      subscriptionCounts = data.counts || {};
+      subscriptionBySubscriber = {};
+      subscriptions.forEach((s) => { if (!subscriptionBySubscriber[s.subscriberId]) subscriptionBySubscriber[s.subscriberId] = s; });
+      setSubsStatus('', false);
+      renderSubscriptions();
+      renderSubscribers();
+    } catch (err) {
+      setSubsStatus('Não foi possível carregar as assinaturas agora.', true);
+    }
+  }
+
+  // Chamada ao servidor para uma ação sobre uma assinatura; devolve true se deu certo.
+  async function subscriptionAction(query, body, failureMessage) {
+    try {
+      const res = await fetch('/api/subscribers?' + query, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(body || {})
+      });
+      if (res.status === 401) { showLogin(); return false; }
+      if (res.status === 400) { setSubsStatus(failureMessage.invalid || 'Confira os dados informados.', true); return false; }
+      if (res.status === 409) { setSubsStatus(failureMessage.conflict || 'Esta assinatura mudou de situação. A lista foi atualizada.', true); await loadSubscriptions(); return false; }
+      if (res.status === 404) { setSubsStatus('Esta assinatura não existe mais.', true); await loadSubscriptions(); return false; }
+      if (!res.ok) throw new Error('http ' + res.status);
+      setSubsStatus('', false);
+      return true;
+    } catch (err) {
+      setSubsStatus(failureMessage.generic || 'Não foi possível concluir agora. Tente de novo.', true);
+      return false;
+    }
+  }
+
+  async function saveSubscriptionLink(id, card) {
+    const link = card.querySelector('.subs-link').value.trim();
+    if (!window.Clube.isValidPaymentLink(link)) { setSubsStatus('Informe um link de pagamento válido, começando com https://', true); return; }
+    if (await subscriptionAction('action=sub-link&subscription=' + encodeURIComponent(id), { link }, { invalid: 'O link precisa começar com https:// e ser um endereço válido.', conflict: 'Esta assinatura já foi encerrada.' })) await loadSubscriptions();
+  }
+
+  async function markSubscriptionSent(id) {
+    if (await subscriptionAction('action=sub-link-sent&subscription=' + encodeURIComponent(id), null, { invalid: 'Salve o link antes de marcar como enviado.' })) await loadSubscriptions();
+  }
+
+  async function changeSubscriptionStatus(id, to) {
+    const sub = subscriptions.find((s) => String(s.id) === String(id));
+    const who = sub ? sub.name : 'este assinante';
+    const questions = {
+      active: 'Confirmar que o pagamento de ' + who + ' foi recebido? A assinatura passará a Ativa.',
+      payment_pending: 'Marcar a assinatura de ' + who + ' como Pagamento pendente?',
+      cancelled: 'Cancelar a assinatura de ' + who + '? Isso não pode ser desfeito (uma nova solicitação teria de ser feita).'
+    };
+    if (!window.confirm(questions[to] || 'Confirmar a mudança?')) return;
+    if (await subscriptionAction('action=sub-status&subscription=' + encodeURIComponent(id), { to }, {})) await loadSubscriptions();
+  }
+
+  async function toggleSubscriptionHistory(id) {
+    const box = subsList.querySelector('[data-history-for="' + id + '"]');
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false;
+    box.textContent = 'Carregando…';
+    try {
+      const res = await fetch('/api/subscribers?view=subscription-events&subscription=' + encodeURIComponent(id), { credentials: 'same-origin', cache: 'no-store' });
+      if (res.status === 401) { showLogin(); return; }
+      if (!res.ok) throw new Error('http ' + res.status);
+      const events = (await res.json()).events || [];
+      const actors = { cliente: 'cliente', admin: 'administrador', sistema: 'sistema' };
+      box.innerHTML = '<ul>' + events.map((e) =>
+        '<li>' + formatDate(e.createdAt) + ' — ' + (e.from && e.from !== e.to ? escapeHtml(window.Clube.statusLabel(e.from)) + ' → ' : '') + escapeHtml(window.Clube.statusLabel(e.to)) +
+        (e.note ? ' · ' + escapeHtml(e.note) : '') + ' <em>(' + escapeHtml(actors[e.actor] || e.actor) + ')</em></li>'
+      ).join('') + '</ul>';
+    } catch (err) {
+      box.textContent = 'Não foi possível carregar o histórico agora.';
+    }
+  }
+
+  // Cliente que já era assinante antes do site: o admin registra a assinatura dele.
+  async function createLegacySubscription(id) {
+    const sub = subscribers.find((s) => String(s.id) === String(id));
+    if (!window.confirm('Registrar a assinatura de ' + (sub ? sub.name : 'este assinante') + ' como ATIVA? Use para quem já era assinante antes do site.')) return;
+    try {
+      const res = await fetch('/api/subscribers?action=sub-create&id=' + encodeURIComponent(id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ status: 'active' })
+      });
+      if (res.status === 401) { showLogin(); return; }
+      if (res.status === 409) { setSubStatus('Este assinante já tem uma assinatura em andamento.', true); await loadSubscriptions(); return; }
+      if (!res.ok && res.status !== 404) throw new Error('http ' + res.status);
+      setSubStatus('', false);
+      await loadSubscriptions();
+    } catch (err) {
+      setSubStatus('Não foi possível registrar a assinatura agora. Tente de novo.', true);
+    }
+  }
+
+  subsFilters.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-subs-filter]');
+    if (!btn) return;
+    subsFilterStatus = btn.dataset.subsFilter;
+    renderSubscriptions();
+  });
+
+  subsList.addEventListener('click', (event) => {
+    const link = event.target.closest('[data-subs-link]');
+    if (link) { saveSubscriptionLink(link.dataset.subsLink, link.closest('[data-subs-card]')); return; }
+    const sent = event.target.closest('[data-subs-sent]');
+    if (sent) { markSubscriptionSent(sent.dataset.subsSent); return; }
+    const status = event.target.closest('[data-subs-status]');
+    if (status) { changeSubscriptionStatus(status.dataset.subsStatus, status.dataset.to); return; }
+    const history = event.target.closest('[data-subs-history]');
+    if (history) toggleSubscriptionHistory(history.dataset.subsHistory);
+  });
 
   // ---------------------------------------------------------- assinantes ---
   const SUB_FIELD_LABELS = {
@@ -388,6 +617,13 @@
     } catch (err) {
       box.textContent = 'Não foi possível carregar as respostas agora.';
     }
+  }
+
+  function subscriptionLineHtml(s) {
+    const sub = subscriptionBySubscriber[s.id];
+    if (sub) return '<p class="sub-line sub-subscription">Assinatura do clube: ' + escapeHtml(sub.statusLabel) + '</p>';
+    return '<p class="sub-line sub-subscription">Assinatura do clube: nenhuma ' +
+      '<button class="btn btn-ghost sub-answers-btn" type="button" data-sub-create="' + escapeHtml(s.id) + '">Registrar como ativa</button></p>';
   }
 
   function quizLineHtml(s) {
@@ -543,6 +779,7 @@
         '</div>' +
         '<p class="sub-line">' + contact + '</p>' +
         quizLineHtml(s) +
+        subscriptionLineHtml(s) +
         (address ? '<p class="sub-line">' + escapeHtml(address) + '</p>' : '') +
         '<p class="sub-date">Cadastrado em ' + formatDate(s.createdAt) + '</p>' +
         '<div class="sub-answers" data-answers-for="' + escapeHtml(s.id) + '" hidden></div>' +
@@ -680,6 +917,8 @@
   subList.addEventListener('click', (event) => {
     const edit = event.target.closest('[data-edit-sub]');
     if (edit) { startEditing(edit.dataset.editSub); return; }
+    const create = event.target.closest('[data-sub-create]');
+    if (create) { createLegacySubscription(create.dataset.subCreate); return; }
     const club = event.target.closest('[data-club-sub]');
     if (club) { toggleClubPanel(club.dataset.clubSub, club); return; }
     const clubAdd = event.target.closest('.club-add');

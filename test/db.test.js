@@ -397,3 +397,194 @@ test('rateClubWine saves the rating only for the subscriber\'s own wine and only
   assert.deepEqual(done.calls[0].params, [5, 7, 4, '2026-10']);
   assert.equal(await db.rateClubWine(fakeExecute([{ rows: [] }]), 7, 5, 4, '2026-10'), null);
 });
+
+// --- assinaturas do clube ---
+
+const empties = (n) => Array.from({ length: n }, () => ({ rows: [] }));
+
+test('ensureSubscriptionsSchema adds CPF, birth date and delivery reference to subscribers, with a unique CPF', async () => {
+  const execute = fakeExecute(empties(6));
+  await db.ensureSubscriptionsSchema(execute);
+  assert.equal(execute.calls.length, 6);
+  const alter = execute.calls[0].text;
+  assert.match(alter, /ALTER TABLE subscribers/);
+  assert.match(alter, /ADD COLUMN IF NOT EXISTS cpf TEXT/);
+  assert.match(alter, /ADD COLUMN IF NOT EXISTS birth_date DATE/);
+  assert.match(alter, /ADD COLUMN IF NOT EXISTS address_reference TEXT/);
+  assert.match(execute.calls[1].text, /CREATE UNIQUE INDEX IF NOT EXISTS subscribers_cpf_unique ON subscribers \(cpf\) WHERE cpf IS NOT NULL/);
+});
+
+test('ensureSubscriptionsSchema creates subscriptions (one open per subscriber and plan), the status history and the consents', async () => {
+  const execute = fakeExecute(empties(6));
+  await db.ensureSubscriptionsSchema(execute);
+  const subs = execute.calls[2].text;
+  assert.match(subs, /CREATE TABLE IF NOT EXISTS subscriptions/);
+  assert.match(subs, /subscriber_id INTEGER NOT NULL REFERENCES subscribers\(id\) ON DELETE CASCADE/);
+  for (const col of ['plan TEXT NOT NULL', 'price_cents INTEGER NOT NULL', 'status TEXT NOT NULL', 'payment_link TEXT', 'payment_link_sent_at TIMESTAMPTZ', 'requested_at TIMESTAMPTZ NOT NULL DEFAULT now()', 'activated_at TIMESTAMPTZ', 'cancelled_at TIMESTAMPTZ']) {
+    assert.ok(subs.includes(col), col);
+  }
+  assert.match(execute.calls[3].text, /CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_one_open_per_plan ON subscriptions \(subscriber_id, plan\) WHERE status IN \('awaiting_payment', 'active', 'payment_pending', 'suspended'\)/);
+  const events = execute.calls[4].text;
+  assert.match(events, /CREATE TABLE IF NOT EXISTS subscription_events/);
+  assert.match(events, /subscription_id INTEGER NOT NULL REFERENCES subscriptions\(id\) ON DELETE CASCADE/);
+  assert.match(events, /to_status TEXT NOT NULL/);
+  assert.match(events, /actor TEXT NOT NULL/);
+  const consents = execute.calls[5].text;
+  assert.match(consents, /CREATE TABLE IF NOT EXISTS consents/);
+  assert.match(consents, /subscriber_id INTEGER NOT NULL REFERENCES subscribers\(id\) ON DELETE CASCADE/);
+  assert.match(consents, /version TEXT NOT NULL/);
+  assert.match(consents, /accepted BOOLEAN NOT NULL/);
+});
+
+test('ensureSubscriptionsSchema only runs once per connection, so the pages do not pay for it on every request', async () => {
+  const execute = fakeExecute(empties(12));
+  await db.ensureSubscriptionsSchema(execute);
+  await db.ensureSubscriptionsSchema(execute);
+  assert.equal(execute.calls.length, 6);
+  const other = fakeExecute(empties(6));
+  await db.ensureSubscriptionsSchema(other);
+  assert.equal(other.calls.length, 6, 'another connection runs its own check');
+});
+
+test('insertSubscriberWithProfile stores the whole sign-up (address, CPF, birth date, password hash) in one row', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 9 }] }]);
+  const row = await db.insertSubscriberWithProfile(execute, {
+    name: 'Maria Silva', phone: '11987654321', email: 'm@x.com', street: 'Rua A', complement: 'Ap 4', number: '10',
+    neighborhood: 'Centro', city: 'São Paulo', state: 'SP', cep: '01310100', reference: 'Portão azul',
+    cpf: '52998224725', birthDate: '1990-05-17', passwordHash: 'scrypt$aa$bb'
+  });
+  assert.deepEqual(row, { id: 9 });
+  assert.match(execute.calls[0].text, /INSERT INTO subscribers/);
+  assert.match(execute.calls[0].text, /RETURNING \*/);
+  assert.deepEqual(execute.calls[0].params, ['Maria Silva', '11987654321', 'm@x.com', 'Rua A', 'Ap 4', '10', 'Centro', 'São Paulo', 'SP', '01310100', 'Portão azul', '52998224725', '1990-05-17', 'scrypt$aa$bb']);
+});
+
+test('updateSubscriberProfile fills the delivery address, CPF and birth date of an existing subscriber', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 3 }] }]);
+  const row = await db.updateSubscriberProfile(execute, 3, {
+    street: 'Rua A', complement: null, number: '10', neighborhood: 'Centro', city: 'São Paulo', state: 'SP',
+    cep: '01310100', reference: null, cpf: '52998224725', birthDate: '1990-05-17'
+  });
+  assert.deepEqual(row, { id: 3 });
+  const sql = execute.calls[0].text;
+  assert.match(sql, /UPDATE subscribers SET/);
+  assert.match(sql, /WHERE id = \$1/);
+  assert.doesNotMatch(sql, /password_hash|name =|phone =|email =/);
+  assert.deepEqual(execute.calls[0].params, [3, 'Rua A', null, '10', 'Centro', 'São Paulo', 'SP', '01310100', null, '52998224725', '1990-05-17']);
+  assert.equal(await db.updateSubscriberProfile(fakeExecute([{ rows: [] }]), 99, { street: 'x', complement: null, number: '1', neighborhood: 'x', city: 'x', state: 'SP', cep: '01310100', reference: null, cpf: 'x', birthDate: 'x' }), null);
+});
+
+test('findSignupConflicts looks for another subscriber with the same phone, e-mail (any case) or CPF, skipping the one given', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 2, phone: '11987654321', email: 'a@x.com', cpf: null }] }]);
+  const rows = await db.findSignupConflicts(execute, { phone: '11987654321', email: 'A@x.com', cpf: '52998224725', excludeId: 7 });
+  assert.equal(rows.length, 1);
+  const sql = execute.calls[0].text;
+  assert.match(sql, /phone = \$1/);
+  assert.match(sql, /LOWER\(email\) = \$2/);
+  assert.match(sql, /cpf = \$3/);
+  assert.match(sql, /id <> \$4/);
+  assert.deepEqual(execute.calls[0].params, ['11987654321', 'a@x.com', '52998224725', 7]);
+  await db.findSignupConflicts(fakeExecute([{ rows: [] }]), { phone: '1', email: null, cpf: null });
+});
+
+test('findSignupConflicts passes null for what was not given', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.findSignupConflicts(execute, { phone: '11987654321', email: null, cpf: null });
+  assert.deepEqual(execute.calls[0].params, ['11987654321', null, null, null]);
+});
+
+test('insertConsents records each acceptance (type, text version, yes/no) in one statement, and does nothing for an empty list', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.insertConsents(execute, 7, [
+    { type: 'terms', version: 'v1', accepted: true },
+    { type: 'marketing', version: 'v1', accepted: false }
+  ]);
+  assert.match(execute.calls[0].text, /INSERT INTO consents \(subscriber_id, type, version, accepted\) VALUES \(\$1, \$2, \$3, \$4\), \(\$1, \$5, \$6, \$7\)/);
+  assert.deepEqual(execute.calls[0].params, [7, 'terms', 'v1', true, 'marketing', 'v1', false]);
+  const none = fakeExecute([]);
+  await db.insertConsents(none, 7, []);
+  assert.equal(none.calls.length, 0);
+});
+
+test('insertSubscription creates the request, active already when the admin says so, and returns null if an open one exists', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 4, status: 'awaiting_payment' }] }]);
+  const row = await db.insertSubscription(execute, { subscriberId: 7, plan: 'personnalite', priceCents: 12000, status: 'awaiting_payment' });
+  assert.deepEqual(row, { id: 4, status: 'awaiting_payment' });
+  const sql = execute.calls[0].text;
+  assert.match(sql, /INSERT INTO subscriptions/);
+  assert.match(sql, /ON CONFLICT DO NOTHING/);
+  assert.match(sql, /CASE WHEN \$4::text = 'active' THEN now\(\) END/);
+  assert.deepEqual(execute.calls[0].params, [7, 'personnalite', 12000, 'awaiting_payment']);
+  assert.equal(await db.insertSubscription(fakeExecute([{ rows: [] }]), { subscriberId: 7, plan: 'personnalite', priceCents: 12000, status: 'awaiting_payment' }), null);
+});
+
+test('insertSubscriptionEvent adds a line to the status history', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.insertSubscriptionEvent(execute, { subscriptionId: 4, from: null, to: 'awaiting_payment', actor: 'cliente', note: 'Solicitação feita pelo site' });
+  assert.match(execute.calls[0].text, /INSERT INTO subscription_events \(subscription_id, from_status, to_status, actor, note\) VALUES \(\$1, \$2, \$3, \$4, \$5\)/);
+  assert.deepEqual(execute.calls[0].params, [4, null, 'awaiting_payment', 'cliente', 'Solicitação feita pelo site']);
+});
+
+test('transitionSubscription changes the status only from the expected one, in a single statement that also writes the history', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 4, status: 'active' }] }]);
+  const row = await db.transitionSubscription(execute, 4, 'awaiting_payment', 'active', 'admin', 'Pix recebido');
+  assert.deepEqual(row, { id: 4, status: 'active' });
+  const sql = execute.calls[0].text;
+  assert.match(sql, /UPDATE subscriptions SET status = \$3/);
+  assert.match(sql, /WHERE id = \$1 AND status = \$2/);
+  assert.match(sql, /activated_at = CASE WHEN \$3::text = 'active' AND activated_at IS NULL THEN now\(\) ELSE activated_at END/);
+  assert.match(sql, /cancelled_at = CASE WHEN \$3::text = 'cancelled' THEN now\(\) ELSE cancelled_at END/);
+  assert.match(sql, /INSERT INTO subscription_events/);
+  assert.match(sql, /FROM upd/);
+  assert.deepEqual(execute.calls[0].params, [4, 'awaiting_payment', 'active', 'admin', 'Pix recebido']);
+  assert.equal(await db.transitionSubscription(fakeExecute([{ rows: [] }]), 4, 'awaiting_payment', 'active', 'admin', null), null, 'the status had already changed');
+});
+
+test('getSubscription and getLatestSubscription return one subscription, or null', async () => {
+  const one = fakeExecute([{ rows: [{ id: 4 }] }]);
+  assert.deepEqual(await db.getSubscription(one, 4), { id: 4 });
+  assert.match(one.calls[0].text, /FROM subscriptions WHERE id = \$1/);
+  const latest = fakeExecute([{ rows: [{ id: 8 }] }]);
+  assert.deepEqual(await db.getLatestSubscription(latest, 7), { id: 8 });
+  assert.match(latest.calls[0].text, /WHERE subscriber_id = \$1 ORDER BY id DESC LIMIT 1/);
+  assert.equal(await db.getLatestSubscription(fakeExecute([{ rows: [] }]), 7), null);
+});
+
+test('listSubscriptions returns every request with the subscriber data and whether the questionnaire was answered, newest first', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 4, name: 'Maria' }] }]);
+  assert.deepEqual(await db.listSubscriptions(execute), [{ id: 4, name: 'Maria' }]);
+  const sql = execute.calls[0].text;
+  assert.match(sql, /FROM subscriptions s JOIN subscribers sub ON sub\.id = s\.subscriber_id/);
+  assert.match(sql, /to_char\(sub\.birth_date, 'YYYY-MM-DD'\) AS birth_date/);
+  assert.match(sql, /FROM questionnaire_responses q WHERE q\.subscriber_id = s\.subscriber_id/);
+  assert.match(sql, /AS questionnaire_answered/);
+  assert.match(sql, /ORDER BY s\.requested_at DESC, s\.id DESC/);
+  assert.doesNotMatch(sql, /password_hash/);
+});
+
+test('listSubscriptionEvents returns the status history of one subscription, newest first', async () => {
+  const execute = fakeExecute([{ rows: [{ id: 2 }, { id: 1 }] }]);
+  assert.deepEqual(await db.listSubscriptionEvents(execute, 4), [{ id: 2 }, { id: 1 }]);
+  assert.match(execute.calls[0].text, /WHERE subscription_id = \$1 ORDER BY id DESC/);
+});
+
+test('setSubscriptionPaymentLink saves the link (and clears the "sent" mark); markPaymentLinkSent records that it was sent', async () => {
+  const set = fakeExecute([{ rows: [{ id: 4 }] }]);
+  assert.deepEqual(await db.setSubscriptionPaymentLink(set, 4, 'https://mpago.la/x'), { id: 4 });
+  assert.match(set.calls[0].text, /SET payment_link = \$2, payment_link_sent_at = NULL/);
+  assert.deepEqual(set.calls[0].params, [4, 'https://mpago.la/x']);
+  assert.equal(await db.setSubscriptionPaymentLink(fakeExecute([{ rows: [] }]), 99, 'https://mpago.la/x'), null);
+
+  const sent = fakeExecute([{ rows: [{ id: 4 }] }]);
+  assert.deepEqual(await db.markPaymentLinkSent(sent, 4), { id: 4 });
+  assert.match(sent.calls[0].text, /SET payment_link_sent_at = now\(\)/);
+  assert.match(sent.calls[0].text, /WHERE id = \$1 AND payment_link IS NOT NULL/);
+  assert.equal(await db.markPaymentLinkSent(fakeExecute([{ rows: [] }]), 4), null);
+});
+
+test('countRecentSubscriptions counts the requests made in the last minutes', async () => {
+  const execute = fakeExecute([{ rows: [{ total: 7 }] }]);
+  assert.equal(await db.countRecentSubscriptions(execute, 60), 7);
+  assert.match(execute.calls[0].text, /SELECT COUNT\(\*\)::int AS total FROM subscriptions WHERE requested_at > now\(\) - make_interval\(mins => \$1\)/);
+  assert.deepEqual(execute.calls[0].params, [60]);
+});

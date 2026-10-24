@@ -202,6 +202,67 @@ Cadastro de assinantes (feito por você no painel) e a **Área do assinante**
 - **Ainda não existe:** cadastro pelo site pelo próprio cliente e envio de
   e-mail/WhatsApp.
 
+## Contratação do clube (Clube V&H Personnalité)
+
+Página `/clube.html`: apresentação, plano (R$ 120,00/mês, dois vinhos, frete
+incluso), perguntas frequentes e o formulário de contratação em 5 etapas.
+
+- **Interruptor:** a contratação só aceita cadastros com a variável
+  **`CLUBE_ABERTO=true`** na Vercel (Settings → Environment Variables; depois é
+  preciso um novo deploy). Sem ela, a página mostra "as contratações abrem em
+  breve" e o servidor recusa qualquer cadastro. Quem já é cliente continua entrando
+  normalmente na área do assinante.
+- **Antes de ligar o interruptor:**
+  1. Revisar com um profissional os rascunhos de **`/termos.html`** e
+     **`/privacidade.html`** (têm trechos "[a definir]" e um aviso de rascunho em
+     vermelho, que deve sair ao publicar). Ao mudar os textos, troque também
+     `LEGAL_VERSION` em `js/clube.js`: o cadastro grava qual versão cada cliente aceitou.
+  2. Confirmar as frases da página sobre **entrega** e **cancelamento** (em
+     `clube.html`, bloco "O plano"): hoje dizem que a entrega é combinada com o
+     cliente pela equipe e que o cancelamento é por solicitação ao atendimento.
+  3. Fazer um cadastro de teste completo e, depois, excluir esse assinante no painel.
+- **Etapas do cliente:** 1) CEP (só estado de São Paulo) · 2) dados pessoais e
+  senha · 3) endereço de entrega · 4) questionário de paladar, agora ou depois na
+  área dele · 5) revisão, aceites e "Solicitar minha assinatura".
+- **O que o servidor confere de novo:** CPF, celular, maioridade (18+), CEP e
+  estado de São Paulo, senha, aceites obrigatórios e o questionário (se enviado).
+  Nada é criado pela metade: se uma etapa falhar, a conta também é desfeita.
+- **Cliente que já existe** (e-mail, celular ou CPF já cadastrados): o site manda
+  entrar na área, sem criar um segundo cadastro. O cliente já cadastrado por você
+  entra, abre o clube e só completa CPF, nascimento e endereço.
+- **Freio:** a partir de 30 solicitações em uma hora, novas são seguradas por um
+  tempo (proteção contra cadastro em massa).
+- **Assinatura:** nasce **Aguardando pagamento** e só vira **Ativa** quando **você**
+  confirma o pagamento no painel. Enviar o link não ativa nada, e o cliente não
+  consegue mudar a situação. Cada mudança fica no histórico (quem, quando, nota).
+  Situações: Aguardando pagamento, Ativa, Pagamento pendente, Cancelada, Suspensa.
+  Uma assinatura Cancelada é definitiva: o cliente pode fazer uma nova solicitação.
+  Um cliente não pode ter duas assinaturas abertas ao mesmo tempo.
+- **No painel (`/admin.html`, seção Assinaturas do clube):** lista de solicitações
+  com contador de novas e filtros (Aguardando pagamento, Ativas, Pendentes,
+  Canceladas, Todas). Cada cartão mostra dados, CPF, nascimento, endereço (com
+  aviso se for fora de SP), situação do questionário e datas. Você pode: colar o
+  **link de pagamento**; **Enviar por e-mail** ou **por WhatsApp** (abre o seu
+  e-mail/WhatsApp com a mensagem pronta; o CPF nunca vai na mensagem); **Marcar como
+  enviado**; **Confirmar pagamento**; marcar **pagamento pendente**; **cancelar**; e
+  ver o **histórico**. Em cada assinante, a linha "Assinatura do clube" mostra a
+  situação, e **Registrar como ativa** cadastra quem já era assinante antes do site.
+- **Na área do assinante:** cartões **Minha assinatura** (situação, valor e o
+  botão do link de pagamento enquanto houver pagamento a fazer) e **Meus dados**
+  (endereço de entrega e CPF só com os dois últimos números). Para mudar dados, o
+  cliente fala com a loja.
+- **O que ainda não existe (próximas etapas):** envio automático de e-mail
+  (hoje: botões prontos de e-mail e WhatsApp); cobrança recorrente automática e
+  pagamento direto na contratação ("Modalidade B": depende de confirmar o que o
+  provedor de pagamento oferece); histórico de pagamentos; edição de dados pelo
+  próprio cliente. A página não promete débito automático.
+- **Privacidade:** o CEP digitado é consultado no serviço ViaCEP (viacep.com.br)
+  só para preencher o endereço; isso está dito na Política de Privacidade.
+- **Banco:** colunas novas em `subscribers` (CPF, nascimento, referência de
+  entrega) e tabelas `subscriptions`, `subscription_events` e `consents`, todas
+  criadas sozinhas. Apagar um assinante apaga também tudo isso dele.
+- **Limite da Vercel:** continua em 12 funções em `api/`.
+
 ## Questionário do clube (Clube V&H Personnalité)
 
 Questionário de perfil de paladar, com 12 perguntas em 4 etapas.

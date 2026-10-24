@@ -167,3 +167,22 @@ test('a hash from another password never verifies against the fingerprint of the
   const h = await pw.hashPassword('abc12345');
   assert.notEqual(pw.fingerprint(h), pw.fingerprint(null));
 });
+
+test('the profile shown to the client has their address and a masked CPF, and never the hash or the full CPF', () => {
+  const row = {
+    id: 1, name: 'Maria', phone: '11987654321', email: 'm@x.com', password_hash: 'scrypt$aa$bb', cpf: '52998224725',
+    address_street: 'Avenida Paulista', address_number: '1000', address_complement: 'Ap 4', address_neighborhood: 'Bela Vista',
+    address_city: 'São Paulo', address_state: 'SP', address_cep: '01310100', address_reference: 'Portão azul'
+  };
+  const profile = area.toProfile(row);
+  assert.deepEqual(profile, {
+    address: { cep: '01310100', street: 'Avenida Paulista', number: '1000', complement: 'Ap 4', neighborhood: 'Bela Vista', city: 'São Paulo', state: 'SP', reference: 'Portão azul' },
+    cpfMasked: '***.***.***-25'
+  });
+  assert.ok(!JSON.stringify(profile).includes('52998224725'));
+  assert.ok(!JSON.stringify(profile).includes('scrypt'));
+});
+
+test('a client with no address or CPF yet has an empty profile', () => {
+  assert.deepEqual(area.toProfile({ id: 2, name: 'João', phone: '1133334444', email: null, cpf: null, address_street: null }), { address: null, cpfMasked: null });
+});
