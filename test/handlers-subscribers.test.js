@@ -39,6 +39,18 @@ function fakeDb() {
       Object.assign(row, { name: value.name, phone: value.phone, email: value.email, address_street: value.street, address_complement: value.complement, address_number: value.number, address_neighborhood: value.neighborhood, address_city: value.city, address_state: value.state, address_cep: value.cep });
       return row;
     },
+    subscriptions: [],
+    events: [],
+    async ensureSubscriptionsSchema() {},
+    async getSubscriberBy(_e, field, value) { return rows.find((r) => r[field] === value) || null; },
+    async insertSubscription(_e, { subscriberId, plan, priceCents, status }) {
+      const subs = this.subscriptions;
+      if (subs.some((s) => s.subscriber_id === subscriberId && s.status !== 'cancelled')) return null;
+      const row = { id: subs.length + 1, subscriber_id: subscriberId, plan, price_cents: priceCents, status, payment_link: null };
+      subs.push(row);
+      return row;
+    },
+    async insertSubscriptionEvent(_e, ev) { this.events.push(ev); },
     async deleteSubscriber(_e, id) { calls.push(['delete', id]); const i = rows.findIndex((r) => r.id === id); if (i === -1) return false; rows.splice(i, 1); return true; }
   };
 }
@@ -219,4 +231,12 @@ test('reset-password also needs the admin session', async () => {
   await make(db)(mockReq({ method: 'POST', headers: {}, query: { id: '1', action: 'reset-password' } }), res);
   assert.equal(res.statusCode, 401);
   assert.equal(db.calls.length, 0);
+});
+
+test('POST creating a subscriber also leaves them with an active subscription', async () => {
+  const db = fakeDb();
+  const res = mockRes();
+  await make(db)(mockReq({ method: 'POST', headers: adminHeaders(), body: { name: 'Maria', phone: '(11) 98765-4321' } }), res);
+  assert.equal(res.statusCode, 201);
+  assert.deepEqual(db.subscriptions.map((s) => [s.subscriber_id, s.status]), [[1, 'active']]);
 });

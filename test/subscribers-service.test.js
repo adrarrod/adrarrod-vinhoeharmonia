@@ -121,6 +121,18 @@ function fakeDb() {
       Object.assign(row, { name: value.name, phone: value.phone, email: value.email, address_street: value.street, address_complement: value.complement, address_number: value.number, address_neighborhood: value.neighborhood, address_city: value.city, address_state: value.state, address_cep: value.cep });
       return row;
     },
+    subscriptions: [],
+    events: [],
+    async ensureSubscriptionsSchema() {},
+    async getSubscriberBy(_execute, field, value) { return rows.find((r) => r[field] === value) || null; },
+    async insertSubscription(_execute, { subscriberId, plan, priceCents, status }) {
+      const subs = this.subscriptions;
+      if (subs.some((s) => s.subscriber_id === subscriberId && s.status !== 'cancelled')) return null;
+      const row = { id: subs.length + 1, subscriber_id: subscriberId, plan, price_cents: priceCents, status, payment_link: null };
+      subs.push(row);
+      return row;
+    },
+    async insertSubscriptionEvent(_execute, ev) { this.events.push(ev); },
     async deleteSubscriber(_execute, id) { calls.push(['delete', id]); const i = rows.findIndex((r) => r.id === id); if (i === -1) return false; rows.splice(i, 1); return true; }
   };
 }
@@ -256,4 +268,27 @@ test('resetSubscriberPassword sends the subscriber back to the initial password 
   assert.equal(await svc.resetSubscriberPassword(deps(db), 1), true);
   assert.deepEqual(db.calls.filter((c) => c[0] === 'password'), [['password', 1, null]]);
   assert.equal(await svc.resetSubscriberPassword(deps(db), 99), false);
+});
+
+test('a subscriber registered by the admin already has an active club subscription, with the history showing who did it', async () => {
+  const db = fakeDb();
+  await svc.createSubscriber(deps(db), { name: 'Maria', phone: '11987654321', email: 'maria@x.com' });
+  assert.equal(db.subscriptions.length, 1);
+  assert.deepEqual([db.subscriptions[0].subscriber_id, db.subscriptions[0].status, db.subscriptions[0].plan, db.subscriptions[0].price_cents], [1, 'active', 'personnalite', 12000]);
+  assert.deepEqual(db.events.map((e) => [e.subscriptionId, e.from, e.to, e.actor]), [[1, null, 'active', 'admin']]);
+});
+
+test('a registration that is refused (invalid or repeated) creates no subscription', async () => {
+  const db = fakeDb();
+  await assert.rejects(() => svc.createSubscriber(deps(db), { name: '', phone: '1' }), svc.ValidationError);
+  await svc.createSubscriber(deps(db), { name: 'Maria', phone: '11987654321' });
+  await assert.rejects(() => svc.createSubscriber(deps(db), { name: 'Outra', phone: '(11) 98765-4321' }), svc.DuplicateError);
+  assert.equal(db.subscriptions.length, 1);
+});
+
+test('if the subscription cannot be created, the new subscriber is not left behind without one', async () => {
+  const db = fakeDb();
+  db.insertSubscription = async () => { throw new Error('database down'); };
+  await assert.rejects(() => svc.createSubscriber(deps(db), { name: 'Maria', phone: '11987654321' }), /database down/);
+  assert.equal(db.rows.length, 0);
 });

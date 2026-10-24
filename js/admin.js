@@ -864,6 +864,7 @@
       stopEditing();
       setSubStatus('Assinante ' + data.subscriber.name + (wasEditing ? ' atualizado.' : ' cadastrado.'), false);
       await loadSubscribers();
+      await loadSubscriptions(); // quem é cadastrado já entra com a assinatura ativa
       if (!wasEditing) document.getElementById('sub-name').focus();
     } catch (err) {
       setSubStatus('Não foi possível ' + (editingId === null ? 'cadastrar' : 'salvar') + ' agora. Tente de novo.', true);
@@ -882,6 +883,7 @@
       if (String(editingId) === String(id)) stopEditing();
       setSubStatus('', false);
       await loadSubscribers();
+      await loadSubscriptions();
     } catch (err) {
       setSubStatus('Não foi possível excluir agora. Tente de novo.', true);
     }

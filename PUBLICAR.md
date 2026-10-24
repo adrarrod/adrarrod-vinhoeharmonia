@@ -164,6 +164,11 @@ Cadastro de assinantes (feito por você no painel) e a **Área do assinante**
 
 **Cadastro (painel `/admin.html`, seção Assinantes)**
 
+- **Assinatura já ativa:** quem você cadastra aqui já entra com a assinatura do
+  clube **Ativa** (aparece em "Assinatura do clube" no cartão e em "Minha
+  assinatura" na área dele). Quem foi cadastrado **antes** dessa regra e ainda
+  mostra "Você ainda não tem uma assinatura" ganha a assinatura pelo botão
+  **Registrar como ativa**, no cartão dele.
 - **Campos:** Nome e Telefone são obrigatórios. E-mail, Endereço, Complemento,
   Número, Bairro, Cidade, Estado (sigla, ex.: SP) e CEP são opcionais.
 - **Banco:** tabela `subscribers`, criada/atualizada sozinha no primeiro uso.
