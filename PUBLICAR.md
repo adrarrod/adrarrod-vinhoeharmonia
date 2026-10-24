@@ -212,15 +212,19 @@ incluso), perguntas frequentes e o formulário de contratação em 5 etapas.
   preciso um novo deploy). Sem ela, a página mostra "as contratações abrem em
   breve" e o servidor recusa qualquer cadastro. Quem já é cliente continua entrando
   normalmente na área do assinante.
+- **Textos legais:** `/termos.html` (Termos de Uso e Condições de Compra e
+  Assinatura) e `/privacidade.html` (Política de Privacidade) foram gerados dos
+  documentos da loja, datados de 24/10/2026, e estão ligados no rodapé das páginas
+  públicas. A versão é única para os dois: `LEGAL_VERSION` em `js/clube.js`
+  (hoje `2026-10-24`) é gravada em cada aceite do cadastro. **Ao mudar qualquer um
+  dos textos, atualize a data "Última atualização" nas páginas e troque o
+  `LEGAL_VERSION`.** A janela de entrega do clube (do dia 15 ao último dia de cada
+  mês) vale nos Termos, na página do clube e no resumo da contratação.
 - **Antes de ligar o interruptor:**
-  1. Revisar com um profissional os rascunhos de **`/termos.html`** e
-     **`/privacidade.html`** (têm trechos "[a definir]" e um aviso de rascunho em
-     vermelho, que deve sair ao publicar). Ao mudar os textos, troque também
-     `LEGAL_VERSION` em `js/clube.js`: o cadastro grava qual versão cada cliente aceitou.
-  2. Confirmar as frases da página sobre **entrega** e **cancelamento** (em
-     `clube.html`, bloco "O plano"): hoje dizem que a entrega é combinada com o
-     cliente pela equipe e que o cancelamento é por solicitação ao atendimento.
-  3. Fazer um cadastro de teste completo e, depois, excluir esse assinante no painel.
+  1. Conferir os pontos abertos dos textos (e-mail e endereço da empresa, regra do
+     cancelamento: veja o resumo da última entrega) e os cookies descritos na
+     Política (seção 8), que refletem o que o site usa hoje.
+  2. Fazer um cadastro de teste completo e, depois, excluir esse assinante no painel.
 - **Etapas do cliente:** 1) CEP (só estado de São Paulo) · 2) dados pessoais e
   senha · 3) endereço de entrega · 4) questionário de paladar, agora ou depois na
   área dele · 5) revisão, aceites e "Solicitar minha assinatura".
@@ -257,7 +261,10 @@ incluso), perguntas frequentes e o formulário de contratação em 5 etapas.
   provedor de pagamento oferece); histórico de pagamentos; edição de dados pelo
   próprio cliente. A página não promete débito automático.
 - **Privacidade:** o CEP digitado é consultado no serviço ViaCEP (viacep.com.br)
-  só para preencher o endereço; isso está dito na Política de Privacidade.
+  só para preencher o endereço; isso está dito na Política de Privacidade (seção 8),
+  junto com o cookie de sessão, o armazenamento local (maioridade, carrinho e
+  último pedido), o Google Fonts e o Mercado Pago. Se um dia entrar uma ferramenta
+  de análise ou publicidade, a seção 8 precisa ser atualizada.
 - **Banco:** colunas novas em `subscribers` (CPF, nascimento, referência de
   entrega) e tabelas `subscriptions`, `subscription_events` e `consents`, todas
   criadas sozinhas. Apagar um assinante apaga também tudo isso dele.

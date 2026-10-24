@@ -10,9 +10,10 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const PLAN = { id: 'personnalite', name: 'Clube V&H Personnalité', priceCents: 12000, winesPerMonth: 2 };
   const SLOGAN = 'Seu paladar é único. Seus vinhos também.';
-  // Versão dos textos legais aceitos no cadastro (Termos de Uso, Política de
-  // Privacidade e condições da assinatura). Trocar quando os textos mudarem.
-  const LEGAL_VERSION = 'rascunho-2026-10';
+  // Versão dos textos legais aceitos no cadastro: Termos de Uso e Condições de
+  // Compra e Assinatura + Política de Privacidade, a data da "Última atualização"
+  // que aparece nas duas páginas. Trocar quando os textos mudarem.
+  const LEGAL_VERSION = '2026-10-24';
   const OUT_OF_AREA_MESSAGE = 'Que bom ter seu interesse! Neste momento, o Clube V&H Personnalité atende somente endereços no estado de São Paulo. Esperamos chegar à sua região em breve.';
 
   // ---------------------------------------------------------------- status --

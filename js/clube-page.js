@@ -285,6 +285,7 @@
       summaryRow('Vinhos', Clube.PLAN.winesPerMonth + ' por mês') +
       summaryRow('Frete', 'Incluso no valor') +
       summaryRow('Cobrança', 'Mensal. Você recebe o link de pagamento por e-mail.') +
+      summaryRow('Entregas', 'Do dia 15 ao último dia de cada mês') +
       summaryRow('Cancelamento', 'Por solicitação ao nosso atendimento') +
       summaryRow('Entrega em', esc(address)) +
       summaryRow('Titular', esc(person.name) + '<br>' + esc(person.email || '') + '<br>' + esc(maskPhone(String(person.phone || '')))) +

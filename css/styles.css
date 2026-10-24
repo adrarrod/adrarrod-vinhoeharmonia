@@ -1433,7 +1433,14 @@ a.btn { text-decoration: none; }
 /* páginas legais (rascunho) */
 .legal-main { padding-top: 26px; padding-bottom: 40px; max-width: 760px; }
 .legal-main h2 { font-size: 1.8rem; margin-bottom: 6px; }
-.legal-main h3 { font-family: var(--font-body); font-size: 1rem; margin: 22px 0 6px; color: var(--gold-soft); }
+.legal-main h3 { font-family: var(--font-body); font-size: 1rem; margin: 26px 0 6px; color: var(--gold-soft); scroll-margin-top: 80px; }
+.legal-main h4 { font-family: var(--font-body); font-size: .9rem; margin: 16px 0 4px; color: var(--text); }
+.legal-meta { color: var(--silver); font-size: .9rem; margin: 0 0 14px; }
+.legal-box { border: 1px solid rgba(196, 154, 61, .4); background: rgba(196, 154, 61, .06); border-radius: var(--radius); padding: 10px 14px; color: var(--muted); }
+.legal-box strong { color: var(--text); }
+.legal-sign { margin-top: 26px; text-align: center; font-style: italic; color: var(--gold-soft); }
+.legal-main ul { padding-left: 22px; }
+.legal-main li { margin: 3px 0; }
 .legal-main p, .legal-main li { color: var(--muted); line-height: 1.6; }
 .legal-draft {
   border: 1px solid var(--err); background: rgba(226, 101, 122, .1); border-radius: var(--radius);
