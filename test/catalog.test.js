@@ -6,7 +6,7 @@ const Catalog = require('../js/catalog.js');
 const KNOWN_CATEGORIES = ['Tinto', 'Branco', 'Rosé', 'Espumante', 'Sobremesa'];
 
 test('MENU has the full catalog, every wine in a known category', () => {
-  assert.equal(Catalog.MENU.length, 116);
+  assert.equal(Catalog.MENU.length, 121);
   for (const wine of Catalog.MENU) {
     assert.ok(KNOWN_CATEGORIES.includes(wine.category), `unexpected category ${wine.category} on ${wine.name}`);
   }
@@ -164,4 +164,29 @@ test('filterWines combines country, grape and name with AND', () => {
 
 test('filterWines ignores a blank or whitespace-only name, like searchByName does', () => {
   assert.equal(Catalog.filterWines({ query: '   ', country: 'Chile' }).length, Catalog.filterWines({ country: 'Chile' }).length);
+});
+
+test('every pairing used in the catalog has an icon of its own, not the generic glass', () => {
+  const used = new Set();
+  for (const wine of Catalog.MENU) wine.pairings.forEach((p) => used.add(p));
+  const fallback = Catalog.pairingIcon('categoria-que-nao-existe');
+  for (const pairing of used) assert.notEqual(Catalog.pairingIcon(pairing), fallback, `${pairing} is using the generic icon`);
+});
+
+test('the five wines added in October 2026 are in the catalog with the data from the spreadsheet', () => {
+  const expected = [
+    { slug: 'herdade-do-gamito-tinto-cabernet-sauvignon', name: 'Herdade do Gamito tinto CABERNET SAUVIGNON', category: 'Tinto', price: 104.98, country: 'Portugal', grape: 'Cabernet Sauvignon', abv: 13.5, stock: 6, pairings: ['Carnes', 'Pizza', 'Risotos'] },
+    { slug: 'relatos-de-valpa-branco-sauvignon-blanc', name: 'Relatos de Valpa branco SAUVIGNON BLANC', category: 'Branco', price: 35.46, country: 'Chile', grape: 'Sauvignon Blanc', abv: 12, stock: 6, pairings: ['Peixes', 'Ceviche', 'Saladas'] },
+    { slug: 'porta-6-brut-branco-metodo-charmat', name: 'Porta 6 BRUT branco Método Charmat', category: 'Espumante', price: 61.99, country: 'Portugal', grape: 'Blend', abv: 12, stock: 6, pairings: ['Frutos do Mar', 'Peixes', 'Saladas'] },
+    { slug: 'martha-s-porto-rose', name: "Martha's Porto Rosé", category: 'Sobremesa', price: 106.18, country: 'Portugal', grape: 'Blend', abv: 17, stock: 6, pairings: ['Sobremesas', 'Queijos', 'Frutas'] },
+    { slug: 'martha-s-porto-tawny', name: "Martha's Porto Tawny", category: 'Sobremesa', price: 85.45, country: 'Portugal', grape: 'Blend', abv: 17, stock: 6, pairings: ['Sobremesas', 'Queijos', 'Frutas'] }
+  ];
+  for (const e of expected) {
+    const wine = Catalog.findBySlug(e.slug);
+    assert.ok(wine, `missing ${e.slug}`);
+    assert.deepEqual([wine.name, wine.category, wine.price, wine.country, wine.grape, wine.abv, wine.initialStock], [e.name, e.category, e.price, e.country, e.grape, e.abv, e.stock], e.slug);
+    assert.deepEqual(wine.pairings, e.pairings, e.slug);
+    assert.equal(wine.image, `img/${e.slug}.jpg`);
+    assert.ok(wine.description.length > 80, `short description on ${e.slug}`);
+  }
 });
