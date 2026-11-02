@@ -1497,3 +1497,24 @@ a.btn { text-decoration: none; }
 .subs-history { margin-top: 8px; border-top: 1px solid rgba(184, 184, 192, .15); padding-top: 8px; font-size: .8rem; }
 .subs-history ul { margin: 0; padding-left: 18px; color: var(--muted); }
 .sub-subscription { color: var(--silver); }
+
+/* ---------------------------------------- preços da Black Friday (vitrine) -- */
+.card-promo { display: grid; gap: 1px; margin-top: 2px; }
+.promo-badge {
+  justify-self: start;
+  font-size: .6rem; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+  background: var(--err); color: #fff; border-radius: 999px; padding: 2px 8px;
+}
+.price-old { margin: 3px 0 0; font-size: .72rem; color: var(--silver); text-decoration: line-through; }
+.price-pix { margin: 0; font-size: .78rem; color: var(--muted); }
+.price-pix strong { font-family: var(--font-display); font-size: 1.12rem; color: var(--gold-soft); font-weight: 400; }
+.price-card { margin: 0; font-size: .72rem; color: var(--silver); }
+.price-pix em, .price-card em, .modal-price em { font-style: normal; font-size: .68rem; color: var(--ok); font-weight: 700; margin-left: 3px; font-family: var(--font-body); }
+.modal-price .price-old { display: inline; margin: 0; font-family: var(--font-body); font-size: .85rem; }
+.modal-price strong { font-weight: 400; }
+.modal-price .price-card { font-family: var(--font-body); font-size: .9rem; }
+
+/* ------------------------------------------- interruptor da promoção (admin) -- */
+.promo-state { margin: 0 0 10px; font-size: 1.05rem; }
+.promo-state.is-on { color: var(--ok); font-weight: 700; }
+.promo-state.is-off { color: var(--silver); }

@@ -6,6 +6,11 @@
     root.Pricing = factory();
   }
 })(typeof self !== 'undefined' ? self : this, function () {
+  // No navegador, js/promocao.js é carregado antes deste arquivo.
+  const Promocao = typeof module === 'object' && module.exports
+    ? require('./promocao.js')
+    : (typeof self !== 'undefined' ? self : globalThis).Promocao;
+
   const FREE_SHIPPING_THRESHOLD = 150;
   const FALLBACK_FLAT_FEE = 15;
   const COUPONS = { PRIMEIRA10: 0.1 };
@@ -40,12 +45,43 @@
     return { cost: flatFee, free: false };
   }
 
-  function computeTotals(items, couponCode, freightCost) {
+  // Desconto da promoção (Black Friday) no carrinho. promo = { active, method }:
+  // sem promoção ativa, ou sem forma de pagamento, não há desconto.
+  function promoDiscountOf(items, promo) {
+    return promo && promo.active ? Promocao.promoDiscount(items, promo.method) : 0;
+  }
+
+  // O que o cliente paga pelos vinhos, já com o desconto da promoção: é este
+  // valor que conta para o frete grátis.
+  function payableSubtotal(items, promo) {
+    return round2(calcSubtotal(items) - promoDiscountOf(items, promo));
+  }
+
+  // O cupom não acumula com a promoção: com ela ligada, vale só para os vinhos que
+  // não estão nela.
+  function couponBase(items, promo) {
     const subtotal = calcSubtotal(items);
-    const coupon = applyCoupon(subtotal, couponCode);
-    const freight = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : freightCost;
-    const total = Math.max(0, round2(subtotal - coupon.discount + freight));
-    return { subtotal, discount: coupon.discount, couponCode: coupon.valid ? coupon.code : null, freight, total };
+    return promo && promo.active ? round2(subtotal - Promocao.promoSubtotal(items)) : subtotal;
+  }
+
+  function computeTotals(items, couponCode, freightCost, promo) {
+    const subtotal = calcSubtotal(items);
+    const promoDiscount = promoDiscountOf(items, promo);
+    const promoOn = !!(promo && promo.active);
+    const base = couponBase(items, promo);
+    const coupon = applyCoupon(base, couponCode);
+    const couponBlocked = promoOn && coupon.valid && base === 0 && subtotal > 0;
+    const freight = round2(subtotal - promoDiscount) >= FREE_SHIPPING_THRESHOLD ? 0 : freightCost;
+    const total = Math.max(0, round2(subtotal - promoDiscount - coupon.discount + freight));
+    return {
+      subtotal,
+      promoDiscount,
+      discount: coupon.discount,
+      couponCode: coupon.valid && !couponBlocked ? coupon.code : null,
+      couponBlocked,
+      freight,
+      total
+    };
   }
 
   return {
@@ -55,6 +91,8 @@
     applyCoupon,
     freeShippingProgress,
     fallbackFreight,
+    payableSubtotal,
+    couponBase,
     computeTotals
   };
 });

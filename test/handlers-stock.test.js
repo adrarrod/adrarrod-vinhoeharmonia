@@ -127,3 +127,67 @@ test('cancel order rejects a missing or non-numeric orderId, and non-POST method
   await handler(mockReq({ method: 'GET', headers: adminHeaders() }), res);
   assert.equal(res.statusCode, 405);
 });
+
+// --- interruptor da Black Friday ---
+
+function promoDeps(initial) {
+  const settings = new Map(Object.entries(initial || {}));
+  return {
+    settings,
+    deps: {
+      execute: async () => ({ rows: [] }),
+      adminPassword: 'admin-pass',
+      sessionSecret: 'test-secret',
+      db: {
+        async ensureSettingsSchema() {},
+        async getSetting(_e, key) { return settings.has(key) ? settings.get(key) : null; },
+        async setSetting(_e, key, value) { settings.set(key, value); }
+      }
+    }
+  };
+}
+const adminCookie = () => ({ cookie: `${require('../lib/auth.js').SESSION_COOKIE_NAME}=${require('../lib/auth.js').signSession('admin-pass', 'test-secret')}` });
+
+test('GET ?resource=promo tells anyone whether the Black Friday is on, without caching', async () => {
+  const { deps } = promoDeps();
+  const off = mockRes();
+  await createStockHandler(deps)(mockReq({ method: 'GET', query: { resource: 'promo' }, headers: {} }), off);
+  assert.equal(off.statusCode, 200);
+  assert.deepEqual(off.body, { blackFriday: false });
+  assert.equal(off.headers['Cache-Control'], 'no-store');
+
+  const { deps: onDeps } = promoDeps({ black_friday: 'on' });
+  const on = mockRes();
+  await createStockHandler(onDeps)(mockReq({ method: 'GET', query: { resource: 'promo' }, headers: {} }), on);
+  assert.deepEqual(on.body, { blackFriday: true });
+});
+
+test('POST ?action=promo lets the admin turn the Black Friday on and off', async () => {
+  const { deps, settings } = promoDeps();
+  const handler = createStockHandler(deps);
+  const on = mockRes();
+  await handler(mockReq({ method: 'POST', query: { action: 'promo' }, headers: adminCookie(), body: { blackFriday: true } }), on);
+  assert.equal(on.statusCode, 200);
+  assert.deepEqual(on.body, { blackFriday: true });
+  assert.equal(settings.get('black_friday'), 'on');
+  const off = mockRes();
+  await handler(mockReq({ method: 'POST', query: { action: 'promo' }, headers: adminCookie(), body: { blackFriday: false } }), off);
+  assert.deepEqual(off.body, { blackFriday: false });
+  assert.equal(settings.get('black_friday'), 'off');
+});
+
+test('only the admin can change the promotion, and only with a real true/false', async () => {
+  const { deps, settings } = promoDeps();
+  const handler = createStockHandler(deps);
+  for (const headers of [{}, { cookie: 'admin_session=lixo' }]) {
+    const res = mockRes();
+    await handler(mockReq({ method: 'POST', query: { action: 'promo' }, headers, body: { blackFriday: true } }), res);
+    assert.equal(res.statusCode, 401);
+  }
+  for (const body of [{}, { blackFriday: 'true' }, { blackFriday: 1 }, null]) {
+    const res = mockRes();
+    await handler(mockReq({ method: 'POST', query: { action: 'promo' }, headers: adminCookie(), body }), res);
+    assert.equal(res.statusCode, 400, JSON.stringify(body));
+  }
+  assert.equal(settings.size, 0);
+});

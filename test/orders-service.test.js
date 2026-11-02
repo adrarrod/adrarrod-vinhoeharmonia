@@ -162,7 +162,8 @@ test('listOrdersForAdmin ensures the schema exists before selecting', async () =
   };
   await svc.listOrdersForAdmin({ execute });
   assert.match(calls[0].text, /CREATE TABLE IF NOT EXISTS orders/);
-  assert.match(calls[1].text, /SELECT \* FROM orders/);
+  assert.match(calls[1].text, /ALTER TABLE orders ADD COLUMN IF NOT EXISTS promo_discount/);
+  assert.match(calls[2].text, /SELECT \* FROM orders/);
 });
 
 test('createOrder ignores a forged item price and charges the catalog price', async () => {
@@ -258,7 +259,7 @@ test('createOrder gives the stock back when writing the order fails', async () =
 
 test('listOrdersForAdmin delegates to db.listOrders', async () => {
   const execute = async (text) => {
-    if (text.includes('CREATE TABLE')) return { rows: [] };
+    if (text.includes('CREATE TABLE') || text.startsWith('ALTER TABLE orders')) return { rows: [] };
     assert.match(text, /SELECT \* FROM orders/);
     return { rows: [{ id: 1 }] };
   };
@@ -288,4 +289,74 @@ test('setOrderStatus delegates to db.updateOrderStatus', async () => {
     return { rows: [] };
   };
   await svc.setOrderStatus({ execute }, 5, 'pago');
+});
+
+// --- Black Friday: o servidor aplica o desconto, e só com a promoção ligada ---
+
+// Banco falso com o interruptor da promoção no estado dado.
+function executeWithPromo(state, calls = [], orderId = 9) {
+  return async (text, params) => {
+    calls.push({ text, params });
+    if (text.startsWith('SELECT value FROM settings')) return { rows: state === null ? [] : [{ value: state }] };
+    if (text.startsWith('INSERT INTO orders')) return { rows: [{ id: orderId }] };
+    if (text.startsWith('UPDATE stock')) return { rows: [{ quantity: 0 }] };
+    return { rows: [] };
+  };
+}
+const monte = (qty, price = 91.32) => ({ slug: 'vezzani-montepulciano', name: 'Vezzani Montepulciano', price, qty });
+
+test('with the promotion on, a PIX order is charged the PIX price of the promotional wines', async () => {
+  const calls = [];
+  const result = await svc.createOrder({ execute: executeWithPromo('on', calls) }, validPayload({ items: [monte(3)], paymentMethod: 'pix' }));
+  assert.equal(result.subtotal, 273.96);
+  assert.equal(result.promoDiscount, 82.2);
+  assert.equal(result.total, 191.76);
+  const insert = calls.find((c) => c.text.startsWith('INSERT INTO orders'));
+  assert.equal(insert.params[20], 82.2, 'the discount is saved with the order');
+  assert.equal(insert.params[18], 191.76, 'the total saved is the discounted one');
+});
+
+test('with the promotion on, a card order gets the smaller card discount', async () => {
+  const result = await svc.createOrder({ execute: executeWithPromo('on') }, validPayload({ items: [monte(3)], paymentMethod: 'card' }));
+  assert.equal(result.promoDiscount, 68.49);
+  assert.equal(result.total, 205.47);
+});
+
+test('with the promotion off, or never switched on, the same order pays the full price', async () => {
+  for (const state of ['off', null]) {
+    const result = await svc.createOrder({ execute: executeWithPromo(state) }, validPayload({ items: [monte(3)], paymentMethod: 'pix' }));
+    assert.equal(result.promoDiscount, 0, String(state));
+    assert.equal(result.total, 273.96, String(state));
+  }
+});
+
+test('a forged price or discount from the browser changes nothing: the server uses its own', async () => {
+  const forged = validPayload({ items: [{ ...monte(2, 0.01), promoDiscount: 999 }], paymentMethod: 'pix', promoDiscount: 999, total: 1 });
+  const result = await svc.createOrder({ execute: executeWithPromo('on') }, forged);
+  assert.equal(result.subtotal, 182.64);
+  assert.equal(result.promoDiscount, 54.8);
+  // 127,84 já com desconto: abaixo de R$ 150, então paga o frete do pedido (15).
+  assert.equal(result.freight, 15);
+  assert.equal(result.total, 142.84);
+});
+
+test('the coupon does not stack on promotional wines, and still works on the other wines of the order', async () => {
+  const mixed = validPayload({ items: [monte(1), { slug: '3-autores', name: '3 Autores', price: 57.64, qty: 1 }], couponCode: 'PRIMEIRA10', paymentMethod: 'pix' });
+  const result = await svc.createOrder({ execute: executeWithPromo('on') }, mixed);
+  assert.equal(result.discount, 5.76);
+  assert.equal(result.couponCode, 'PRIMEIRA10');
+  const onlyPromo = await svc.createOrder({ execute: executeWithPromo('on') }, validPayload({ items: [monte(2)], couponCode: 'PRIMEIRA10', paymentMethod: 'pix' }));
+  assert.equal(onlyPromo.discount, 0);
+  assert.equal(onlyPromo.couponCode, null);
+});
+
+test('the promotion switch is read after the orders table is ensured, and a refused order never reads it', async () => {
+  const calls = [];
+  await svc.createOrder({ execute: executeWithPromo('on', calls) }, validPayload({ items: [monte(1)] }));
+  const firstSetting = calls.findIndex((c) => /settings/.test(c.text));
+  assert.ok(calls.findIndex((c) => /CREATE TABLE IF NOT EXISTS orders/.test(c.text)) < firstSetting);
+
+  const untouched = [];
+  await assert.rejects(() => svc.createOrder({ execute: executeWithPromo('on', untouched) }, validPayload({ items: [] })), svc.ValidationError);
+  assert.equal(untouched.length, 0);
 });

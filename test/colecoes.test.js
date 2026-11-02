@@ -12,23 +12,39 @@ const IMG_DIR = path.join(__dirname, '..', 'colecoes-img');
 const SAMPLE = [
   { slug: 'verao', title: 'Verão', wines: ['3-autores'], until: '2026-11-01' },
   { slug: 'sempre', title: 'Sempre no ar', wines: ['3-autores'] },
-  { slug: 'aviso', title: 'Em breve', teaser: true }
+  { slug: 'aviso', title: 'Em breve', teaser: true },
+  { slug: 'oferta', title: 'Oferta', wines: ['3-autores'], showWhen: 'promo-on' },
+  { slug: 'aviso-oferta', title: 'Oferta em breve', teaser: true, showWhen: 'promo-off' }
 ];
 
 test('the Halloween collection is gone from the site', () => {
   assert.equal(Colecoes.COLLECTIONS.find((c) => c.slug === 'halloween'), undefined);
 });
 
-test('Black Friday is announced as a notice: title above the banner, no wine list and no link', () => {
-  const bf = Colecoes.COLLECTIONS.find((c) => c.slug === 'black-friday');
+test('while the promotion is off, Black Friday is announced as a notice: title above the banner, no wine list and no link', () => {
+  const bf = Colecoes.COLLECTIONS.find((c) => c.slug === 'black-friday-aviso');
   assert.ok(bf, 'black-friday notice missing');
   assert.equal(bf.teaser, true);
+  assert.equal(bf.showWhen, 'promo-off');
   assert.equal(bf.title, 'Estamos preparando a Black Friday. Em breve vamos lançar!');
   assert.equal(bf.bannerDesktop, 'colecoes-img/black-friday-desktop.jpg');
   assert.equal(bf.bannerMobile, 'colecoes-img/black-friday-mobile.jpg');
   assert.ok(bf.bannerAlt);
-  assert.equal(bf.until, undefined, 'stays up until it is replaced by the real launch');
+  assert.equal(bf.until, undefined, 'stays up until the promotion is switched on');
   assert.equal(bf.wines, undefined);
+});
+
+test('while the promotion is on, Black Friday is a collection with the ten wines and a button to see the offers', () => {
+  const Promocao = require('../js/promocao.js');
+  const bf = Colecoes.COLLECTIONS.find((c) => c.slug === 'black-friday');
+  assert.ok(bf, 'black-friday collection missing');
+  assert.equal(bf.showWhen, 'promo-on');
+  assert.equal(bf.teaser, undefined);
+  assert.equal(bf.ctaText, 'Ver as ofertas');
+  assert.deepEqual(bf.wines, Promocao.BLACK_FRIDAY.wines);
+  assert.match(bf.intro, /30%/);
+  assert.match(bf.intro, /25%/);
+  assert.equal(bf.until, undefined);
 });
 
 test('every collection has a unique, url-safe slug and its banner texts; wine collections also have intro, button and real wines', () => {
@@ -96,12 +112,35 @@ test('findActive returns a wine collection while active, and undefined once expi
 
 test('a notice (teaser) has no page: its address never opens a collection view', () => {
   assert.equal(Colecoes.findActive('aviso', new Date(2026, 9, 20), SAMPLE), undefined);
-  assert.equal(Colecoes.findActive('black-friday', new Date(2026, 10, 2)), undefined);
+  assert.equal(Colecoes.findActive('aviso-oferta', new Date(2026, 9, 20), SAMPLE, { promo: false }), undefined);
+  assert.equal(Colecoes.findActive('black-friday-aviso', new Date(2026, 10, 2)), undefined);
   assert.equal(Colecoes.findActive('halloween', new Date(2026, 9, 20)), undefined, 'old Halloween links just show the store');
 });
 
 test('activeCollections lists, for the given day, the banners to show: notices included, expired ones left out', () => {
-  assert.deepEqual(Colecoes.activeCollections(new Date(2026, 9, 20), SAMPLE).map((c) => c.slug), ['verao', 'sempre', 'aviso']);
-  assert.deepEqual(Colecoes.activeCollections(new Date(2026, 10, 2), SAMPLE).map((c) => c.slug), ['sempre', 'aviso']);
-  assert.deepEqual(Colecoes.activeCollections(new Date(2026, 10, 2)).map((c) => c.slug), ['black-friday']);
+  assert.deepEqual(Colecoes.activeCollections(new Date(2026, 9, 20), SAMPLE).map((c) => c.slug), ['verao', 'sempre', 'aviso', 'aviso-oferta']);
+  assert.deepEqual(Colecoes.activeCollections(new Date(2026, 10, 2), SAMPLE).map((c) => c.slug), ['sempre', 'aviso', 'aviso-oferta']);
+});
+
+test('a banner marked for the promotion shows only while the promotion is on (and its notice only while it is off)', () => {
+  const day = new Date(2026, 10, 2);
+  assert.deepEqual(Colecoes.activeCollections(day, SAMPLE, { promo: true }).map((c) => c.slug), ['sempre', 'aviso', 'oferta']);
+  assert.deepEqual(Colecoes.activeCollections(day, SAMPLE, { promo: false }).map((c) => c.slug), ['sempre', 'aviso', 'aviso-oferta']);
+  assert.deepEqual(Colecoes.activeCollections(day, SAMPLE, {}).map((c) => c.slug), ['sempre', 'aviso', 'aviso-oferta'], 'unknown state counts as off');
+});
+
+test('the promotional collection opens only while the promotion is on', () => {
+  const day = new Date(2026, 10, 2);
+  assert.equal(Colecoes.findActive('oferta', day, SAMPLE, { promo: true }).slug, 'oferta');
+  assert.equal(Colecoes.findActive('oferta', day, SAMPLE, { promo: false }), undefined);
+  assert.equal(Colecoes.findActive('oferta', day, SAMPLE), undefined);
+});
+
+test('on the real site: the notice with the promotion off, the offers with it on', () => {
+  const day = new Date(2026, 10, 2);
+  assert.deepEqual(Colecoes.activeCollections(day).map((c) => c.slug), ['black-friday-aviso']);
+  assert.deepEqual(Colecoes.activeCollections(day, undefined, { promo: false }).map((c) => c.slug), ['black-friday-aviso']);
+  assert.deepEqual(Colecoes.activeCollections(day, undefined, { promo: true }).map((c) => c.slug), ['black-friday']);
+  assert.equal(Colecoes.findActive('black-friday', day, undefined, { promo: true }).slug, 'black-friday');
+  assert.equal(Colecoes.findActive('black-friday', day, undefined, { promo: false }), undefined);
 });

@@ -29,6 +29,11 @@
 
   const stockSection = document.getElementById('admin-stock');
 
+  const promoSection = document.getElementById('admin-promo');
+  const promoState = document.getElementById('promo-state');
+  const promoStatus = document.getElementById('promo-status');
+  const promoToggle = document.getElementById('promo-toggle');
+
   const subsSection = document.getElementById('admin-subscriptions');
   const subsStatus = document.getElementById('subs-status');
   const subsList = document.getElementById('subs-list');
@@ -76,6 +81,7 @@
     shippingSection.hidden = true;
     subscribersSection.hidden = true;
     subsSection.hidden = true;
+    promoSection.hidden = true;
     stockSection.hidden = true;
   }
 
@@ -85,6 +91,7 @@
     shippingSection.hidden = false;
     subscribersSection.hidden = false;
     subsSection.hidden = false;
+    promoSection.hidden = false;
     stockSection.hidden = false;
   }
 
@@ -192,6 +199,7 @@
         '<ul class="order-items">' + renderItems(order.items) + '</ul>' +
         '<div class="order-totals">' +
           '<div class="totals-line"><span>Subtotal</span><span>' + formatMoney(order.subtotal) + '</span></div>' +
+          (Number(order.promo_discount) > 0 ? '<div class="totals-line"><span>Desconto Black Friday</span><span>-' + formatMoney(order.promo_discount) + '</span></div>' : '') +
           '<div class="totals-line"><span>Desconto</span><span>-' + formatMoney(order.discount) + '</span></div>' +
           '<div class="totals-line"><span>Frete</span><span>' + formatMoney(order.freight) + '</span></div>' +
           '<div class="totals-line total"><span>Total</span><span>' + formatMoney(order.total) + '</span></div>' +
@@ -238,6 +246,7 @@
       loadStock();
       loadSubscribers();
       loadSubscriptions();
+      loadPromo();
       if (!showMelhorEnvioNotice()) {
         loadMelhorEnvioStatus();
       }
@@ -247,6 +256,62 @@
       setOrdersStatus('Falha de conexão ao buscar pedidos. Verifique sua internet e tente novamente.', true);
     }
   }
+
+  // ------------------------------------------------ promoção (Black Friday) ---
+  let promoOn = false;
+
+  function renderPromo() {
+    promoState.textContent = promoOn ? 'Black Friday LIGADA: os descontos estão valendo agora.' : 'Black Friday desligada: a loja mostra o aviso "em breve".';
+    promoState.className = 'promo-state ' + (promoOn ? 'is-on' : 'is-off');
+    promoToggle.textContent = promoOn ? 'Desligar a Black Friday' : 'Ligar a Black Friday';
+    promoToggle.disabled = false;
+  }
+
+  function setPromoStatus(message, isError) {
+    promoStatus.hidden = !message;
+    promoStatus.textContent = message || '';
+    promoStatus.classList.toggle('card-msg', !!isError);
+  }
+
+  async function loadPromo() {
+    try {
+      const res = await fetch('/api/stock?resource=promo', { cache: 'no-store' });
+      if (!res.ok) throw new Error('http ' + res.status);
+      promoOn = (await res.json()).blackFriday === true;
+      setPromoStatus('', false);
+      renderPromo();
+    } catch (err) {
+      promoState.textContent = 'Não foi possível verificar a promoção agora.';
+      setPromoStatus('Recarregue a página para tentar de novo.', true);
+    }
+  }
+
+  async function togglePromo() {
+    const next = !promoOn;
+    const question = next
+      ? 'Ligar a Black Friday agora? Os descontos (30% no PIX, 25% no cartão) passam a valer na hora para todos os clientes, e o banner "em breve" vira "Ver as ofertas".'
+      : 'Desligar a Black Friday agora? Os descontos terminam na hora e a loja volta ao aviso "em breve".';
+    if (!window.confirm(question)) return;
+    promoToggle.disabled = true;
+    try {
+      const res = await fetch('/api/stock?action=promo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ blackFriday: next })
+      });
+      if (res.status === 401) { showLogin(); return; }
+      if (!res.ok) throw new Error('http ' + res.status);
+      promoOn = next;
+      setPromoStatus(next ? 'Black Friday ligada.' : 'Black Friday desligada.', false);
+    } catch (err) {
+      setPromoStatus('Não foi possível mudar agora. Tente de novo.', true);
+    } finally {
+      renderPromo();
+    }
+  }
+
+  promoToggle.addEventListener('click', togglePromo);
 
   // ------------------------------------------------- assinaturas do clube ---
   let subscriptions = [];

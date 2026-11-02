@@ -13,10 +13,17 @@ function fakeExecute(responses) {
 }
 
 test('ensureSchema runs the CREATE TABLE statement', async () => {
-  const execute = fakeExecute([{ rows: [] }]);
+  const execute = fakeExecute([{ rows: [] }, { rows: [] }]);
   await db.ensureSchema(execute);
-  assert.equal(execute.calls.length, 1);
   assert.match(execute.calls[0].text, /CREATE TABLE IF NOT EXISTS orders/);
+  assert.match(execute.calls[0].text, /promo_discount NUMERIC NOT NULL DEFAULT 0/);
+});
+
+test('ensureSchema also adds the promotion discount column to an orders table created before the promotion existed', async () => {
+  const execute = fakeExecute([{ rows: [] }, { rows: [] }]);
+  await db.ensureSchema(execute);
+  assert.equal(execute.calls.length, 2);
+  assert.match(execute.calls[1].text, /ALTER TABLE orders ADD COLUMN IF NOT EXISTS promo_discount NUMERIC NOT NULL DEFAULT 0/);
 });
 
 test('insertOrder inserts all row fields and returns the new id', async () => {
@@ -587,4 +594,47 @@ test('countRecentSubscriptions counts the requests made in the last minutes', as
   assert.equal(await db.countRecentSubscriptions(execute, 60), 7);
   assert.match(execute.calls[0].text, /SELECT COUNT\(\*\)::int AS total FROM subscriptions WHERE requested_at > now\(\) - make_interval\(mins => \$1\)/);
   assert.deepEqual(execute.calls[0].params, [60]);
+});
+
+test('insertOrder also records the promotional discount of the order (zero when there is none)', async () => {
+  const base = {
+    fullName: 'Maria Silva', birthDate: '1990-01-01', cpf: '11122233344', phone: '11987654321', email: 'maria@example.com',
+    deliveryType: 'delivery', address: { street: 'Rua A', number: '10', complement: '', cep: '01000-000', neighborhood: 'Centro', city: 'São Paulo', state: 'SP' },
+    items: [{ slug: 'vezzani-montepulciano', name: 'Vezzani Montepulciano', price: 91.32, qty: 3 }],
+    couponCode: null, subtotal: 273.96, discount: 0, freight: 0, total: 191.76, paymentMethod: 'pix'
+  };
+  const withPromo = fakeExecute([{ rows: [{ id: 1 }] }]);
+  await db.insertOrder(withPromo, { ...base, promoDiscount: 82.2 });
+  assert.match(withPromo.calls[0].text, /promo_discount/);
+  assert.equal(withPromo.calls[0].params[20], 82.2);
+
+  const without = fakeExecute([{ rows: [{ id: 2 }] }]);
+  await db.insertOrder(without, base);
+  assert.equal(without.calls[0].params[20], 0);
+});
+
+// --- ajustes da loja (interruptor da Black Friday) ---
+
+test('ensureSettingsSchema creates a small key/value table', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.ensureSettingsSchema(execute);
+  assert.match(execute.calls[0].text, /CREATE TABLE IF NOT EXISTS settings/);
+  assert.match(execute.calls[0].text, /key TEXT PRIMARY KEY/);
+  assert.match(execute.calls[0].text, /value TEXT NOT NULL/);
+});
+
+test('getSetting returns the stored text, or null when the setting was never saved', async () => {
+  const found = fakeExecute([{ rows: [{ value: 'on' }] }]);
+  assert.equal(await db.getSetting(found, 'black_friday'), 'on');
+  assert.match(found.calls[0].text, /SELECT value FROM settings WHERE key = \$1/);
+  assert.deepEqual(found.calls[0].params, ['black_friday']);
+  assert.equal(await db.getSetting(fakeExecute([{ rows: [] }]), 'black_friday'), null);
+});
+
+test('setSetting saves or replaces the value of a setting in one statement', async () => {
+  const execute = fakeExecute([{ rows: [] }]);
+  await db.setSetting(execute, 'black_friday', 'off');
+  assert.match(execute.calls[0].text, /INSERT INTO settings \(key, value\) VALUES \(\$1, \$2\)/);
+  assert.match(execute.calls[0].text, /ON CONFLICT \(key\) DO UPDATE SET value = EXCLUDED\.value/);
+  assert.deepEqual(execute.calls[0].params, ['black_friday', 'off']);
 });

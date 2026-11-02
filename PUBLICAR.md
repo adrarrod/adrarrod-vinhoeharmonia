@@ -334,26 +334,61 @@ Questionário de perfil de paladar, com 12 perguntas em 4 etapas.
 - **Limite da Vercel:** continua em 12 funções em `api/` (usa `api/subscribers.js`
   e `api/subscriber-area.js`).
 
+## Black Friday (promoção de preços)
+
+Dez vinhos entram na promoção, com **30% de desconto no PIX** e **25% no cartão**.
+Quem liga e desliga é você, no painel, e vale **na hora**, sem novo deploy.
+
+- **Ligar/desligar:** em `/admin.html`, seção **Promoção Black Friday**, botão
+  **Ligar a Black Friday** (ou **Desligar**). Ele pede confirmação. Desligada, a
+  loja volta ao aviso "em breve" e os pedidos novos saem sem desconto.
+- **O que o cliente vê ao ligar:** o banner vira "Ver as ofertas" e leva à página
+  `index.html#black-friday` com os 10 vinhos. Em cada vinho da promoção (na
+  página das ofertas, na vitrine, na busca e no popup): **De R$ 91,32** (riscado),
+  **R$ 63,92 no PIX −30%** e **R$ 68,49 no cartão −25%**. No carrinho e no
+  fechamento do pedido aparece a linha **"Desconto Black Friday"**, que muda
+  quando ele troca entre PIX e cartão.
+- **Quem calcula é o servidor.** O navegador só mostra: no pedido, o servidor
+  confere se a promoção está ligada, recalcula o preço de cada vinho e o desconto
+  pela forma de pagamento escolhida e grava o desconto no pedido (coluna
+  `promo_discount`; o painel mostra "Desconto Black Friday" em cada pedido).
+  Preço ou desconto enviados pelo navegador são ignorados.
+- **Frete grátis (a partir de R$ 150,00):** conta o valor **já com desconto**. Duas
+  garrafas que custam R$ 182,64 saem a R$ 127,84 no PIX, então ainda pagam frete.
+- **Cupom PRIMEIRA10:** **não acumula** nos vinhos da promoção; continua valendo
+  (10%) para os outros vinhos do mesmo pedido. A tela avisa o cliente.
+- **Como o preço é calculado:** preço atual × (1 − desconto), arredondado em
+  centavos, a mesma conta da sua planilha. Os preços da planilha estão no teste
+  `test/promocao.test.js`, que confere os 20 valores (cartão e PIX) um a um.
+- **Custo, fornecedor, imposto e lucro** da planilha **não** entram no site.
+- **Trocar os vinhos ou os percentuais:** em `js/promocao.js` (lista `wines` e
+  `rates`). Se um preço mudar em `js/catalog.js`, o preço promocional acompanha
+  sozinho, mas o teste acima vai falhar até você atualizar a tabela dele.
+- **Cartão:** o desconto de 25% só ajuda enquanto o pagamento por cartão estiver
+  funcionando no Mercado Pago (hoje a conta ainda está com o bloqueio).
+- **Banco:** tabela `settings` (guarda o interruptor) e coluna `promo_discount` em
+  `orders`, criadas sozinhas.
+- **Limite da Vercel:** continua em 12 funções em `api/` (o interruptor usa
+  `api/stock.js`).
+
 ## Banners da home (coleções e avisos)
 
 Os banners no alto da home (antes das Harmonizações) vêm de `js/colecoes.js`. Há
 dois tipos:
 
 - **Aviso** (`teaser: true`): o título aparece **em cima** da imagem e não há link
-  nem página. É o que está no ar agora: **"Estamos preparando a Black Friday. Em
-  breve vamos lançar!"**, com a imagem em `colecoes-img/black-friday-*.jpg`. Fica no
-  ar até você trocá-lo (não tem `until`).
-- **Coleção** (ex.: Halloween, Natal): o banner tem um botão; clicar abre
-  `index.html#slug`, e a própria home passa a mostrar só os vinhos da coleção, com
-  carrinho, estoque, popup e busca iguais aos da vitrine ("← Voltar à loja" ou o
-  botão voltar do navegador retornam). O link `index.html#slug` pode ser
-  compartilhado. A coleção do Halloween foi removida (links antigos
-  `index.html#halloween` apenas abrem a loja).
-
-**Quando a Black Friday for lançada:** troque o aviso por uma coleção. Em
-`js/colecoes.js`, no objeto `black-friday`, tire `teaser: true`, e acrescente
-`intro`, `ctaText` e `wines` (os `slug` dos vinhos escolhidos). Se tiver imagens
-novas, substitua os dois arquivos de `colecoes-img/`.
+  nem página. Com a Black Friday **desligada**, a home mostra o aviso **"Estamos
+  preparando a Black Friday. Em breve vamos lançar!"** (imagens em
+  `colecoes-img/black-friday-*.jpg`).
+- **Coleção** (ex.: Halloween, Natal, Black Friday): o banner tem um botão; clicar
+  abre `index.html#slug`, e a própria home passa a mostrar só os vinhos da
+  coleção, com carrinho, estoque, popup e busca iguais aos da vitrine ("← Voltar
+  à loja" ou o botão voltar do navegador retornam). O link `index.html#slug` pode
+  ser compartilhado. Com a Black Friday **ligada**, o aviso dá lugar à coleção
+  **Black Friday** (botão "Ver as ofertas"). A coleção do Halloween foi removida
+  (links antigos `index.html#halloween` apenas abrem a loja).
+- **`showWhen`:** liga um banner ao interruptor da promoção: `'promo-on'` só
+  aparece com a Black Friday ligada e `'promo-off'` só com ela desligada.
 
 Para criar um banner novo:
 

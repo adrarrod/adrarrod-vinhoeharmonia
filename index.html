@@ -237,7 +237,10 @@
       </div>
 
       <div class="drawer-foot">
-        <div class="totals-line total"><span>Subtotal</span><span id="cart-subtotal">R$ 0,00</span></div>
+        <div class="totals-line total" id="cart-subtotal-line"><span>Subtotal</span><span id="cart-subtotal">R$ 0,00</span></div>
+        <div class="totals-line discount" id="cart-promo-line" hidden><span id="cart-promo-label"></span><span id="cart-promo-amount"></span></div>
+        <div class="totals-line total" id="cart-payable-line" hidden><span>Você paga pelos vinhos</span><span id="cart-payable"></span></div>
+        <p class="field-hint" id="cart-promo-hint" hidden></p>
         <button class="btn btn-gold btn-block" type="button" id="btn-checkout" style="margin-top:10px">Finalizar pedido</button>
       </div>
     </div>
@@ -394,14 +397,14 @@
                 <input type="radio" name="pay" value="pix" checked>
                 <span>
                   <span class="pay-label">PIX</span><br>
-                  <span class="pay-sub">Confirmação rápida, chave copia-e-cola</span>
+                  <span class="pay-sub" id="pay-sub-pix">Confirmação rápida, chave copia-e-cola</span>
                 </span>
               </label>
               <label class="pay-option">
                 <input type="radio" name="pay" value="card">
                 <span>
                   <span class="pay-label">Cartão de crédito</span><br>
-                  <span class="pay-sub">Checkout seguro do Mercado Pago</span>
+                  <span class="pay-sub" id="pay-sub-card">Checkout seguro do Mercado Pago</span>
                 </span>
               </label>
             </div>
@@ -462,6 +465,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="js/catalog.js"></script>
+  <script src="js/promocao.js"></script>
   <script src="js/pricing.js"></script>
   <script src="js/harmonizacao.js"></script>
   <script src="js/colecoes.js"></script>

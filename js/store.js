@@ -98,7 +98,8 @@
     pendingDeepLink: null,
     deferredInstallPrompt: null,
     pwaDismissed: false,
-    stock: null
+    stock: null,
+    promo: false // Black Friday ligada? (interruptor do painel; /api/stock?resource=promo)
   };
 
   function sanitizeCart(raw) {
@@ -117,6 +118,40 @@
   function persistCart() { writeJSON(CART_KEY, state.cart); }
 
   function subtotal() { return Pricing.calcSubtotal(state.cart); }
+
+  // ------------------------------------------------------ promoção (preços) --
+  // Com a Black Friday ligada, o desconto depende da forma de pagamento (PIX ou
+  // cartão) e só vale para os vinhos da promoção. O servidor refaz esta conta no
+  // pedido; aqui ela só mostra ao cliente o que ele vai pagar.
+  function promoOption() { return { active: state.promo, method: state.paymentMethod }; }
+
+  function payableSubtotal() { return Pricing.payableSubtotal(state.cart, promoOption()); }
+
+  function promoPct(method) { return Math.round(Promocao.BLACK_FRIDAY.rates[method] * 100); }
+
+  function promoMethodLabel(method) { return method === 'pix' ? 'PIX' : 'cartão'; }
+
+  function isOnPromo(wine) { return state.promo && Promocao.isPromoWine(wine.slug); }
+
+  // Preço no cartão do vinho: normal, ou "De R$ X / R$ Y no PIX / R$ Z no cartão".
+  function priceHtml(wine) {
+    if (!isOnPromo(wine)) return '<p class="card-price">' + money(wine.price) + '</p>';
+    return '' +
+      '<div class="card-promo">' +
+        '<span class="promo-badge">Black Friday</span>' +
+        '<p class="price-old">De ' + money(wine.price) + '</p>' +
+        '<p class="price-pix"><strong>' + money(Promocao.priceFor(wine.price, 'pix')) + '</strong> no PIX <em>−' + promoPct('pix') + '%</em></p>' +
+        '<p class="price-card">' + money(Promocao.priceFor(wine.price, 'card')) + ' no cartão <em>−' + promoPct('card') + '%</em></p>' +
+      '</div>';
+  }
+
+  function modalPriceHtml(wine) {
+    if (!isOnPromo(wine)) return esc(money(wine.price));
+    return '' +
+      '<span class="price-old">De ' + money(wine.price) + '</span> ' +
+      '<strong>' + money(Promocao.priceFor(wine.price, 'pix')) + '</strong> no PIX <em>−' + promoPct('pix') + '%</em><br>' +
+      '<span class="price-card">ou ' + money(Promocao.priceFor(wine.price, 'card')) + ' no cartão <em>−' + promoPct('card') + '%</em></span>';
+  }
 
   function cartCount() {
     return state.cart.reduce(function (sum, item) { return sum + item.qty; }, 0);
@@ -233,7 +268,7 @@
         '<div class="card-body">' +
           '<button class="card-name" type="button" data-open="' + esc(wine.slug) + '">' + esc(wine.name) + '</button>' +
           '<p class="card-meta">' + esc(wine.country) + ' &middot; ' + esc(wine.grape) + '</p>' +
-          '<p class="card-price">' + money(wine.price) + '</p>' +
+          priceHtml(wine) +
           '<p class="soldout-label">Esgotado</p>' +
           '<div class="card-actions">' +
             '<div class="stepper" data-card-qty>' +
@@ -364,7 +399,7 @@
     if (!Co || !window.location.hash) return undefined;
     var slug;
     try { slug = decodeURIComponent(window.location.hash.slice(1)); } catch (e) { return undefined; }
-    return Co.findActive(slug, new Date());
+    return Co.findActive(slug, new Date(), undefined, { promo: state.promo });
   }
 
   // Saiu da coleção (busca, filtro ou "Voltar"): tira o #slug da URL para o
@@ -378,7 +413,7 @@
   function renderBanners() {
     var box = $('#colecao-banners');
     var Co = window.Colecoes;
-    var active = Co ? Co.activeCollections(new Date()) : [];
+    var active = Co ? Co.activeCollections(new Date(), undefined, { promo: state.promo }) : [];
     box.innerHTML = active.map(function (c) {
       if (c.teaser) {
         return '' +
@@ -600,7 +635,7 @@
     $('#pm-name').textContent = wine.name;
     $('#pm-meta').textContent = wine.category + ' · ' + wine.country + ' · ' + wine.grape;
     $('#pm-desc').textContent = wine.description;
-    $('#pm-price').textContent = money(wine.price);
+    $('#pm-price').innerHTML = modalPriceHtml(wine);
     $('#pm-qty').textContent = '1';
 
     var abvEl = $('#pm-abv');
@@ -714,6 +749,50 @@
     loadStock();
   }
 
+  // ---------------------------------------------------- interruptor da promoção --
+  // O painel liga/desliga a Black Friday. A vitrine pergunta ao abrir e ao voltar
+  // para a aba; se a pergunta falhar, fica como estava (o servidor é quem cobra).
+  function updateCardPrices() {
+    var cards = document.querySelectorAll('.card[data-slug]');
+    Array.prototype.forEach.call(cards, function (card) {
+      var wine = Catalog.findBySlug(card.dataset.slug);
+      var holder = card.querySelector('.card-price, .card-promo');
+      if (wine && holder) holder.outerHTML = priceHtml(wine);
+    });
+  }
+
+  function updatePayOptionTexts() {
+    var base = { pix: 'Confirmação rápida, chave copia-e-cola', card: 'Checkout seguro do Mercado Pago' };
+    ['pix', 'card'].forEach(function (method) {
+      var el = $('#pay-sub-' + method);
+      if (el) el.textContent = base[method] + (state.promo ? ' · ' + promoPct(method) + '% de desconto na Black Friday' : '');
+    });
+  }
+
+  function applyPromoState(on) {
+    if (on === state.promo) return;
+    state.promo = on;
+    updateCardPrices();
+    updatePayOptionTexts();
+    renderBanners();
+    routeCollection();
+    renderCart();
+    renderCheckoutSummary();
+    if (state.modalSlug && !$('#product-modal').hidden) $('#pm-price').innerHTML = modalPriceHtml(Catalog.findBySlug(state.modalSlug));
+  }
+
+  function loadPromo() {
+    return fetch('/api/stock?resource=promo', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('http ' + res.status)); })
+      .then(function (data) { applyPromoState(data.blackFriday === true); })
+      .catch(function () { /* mantém o que já está na tela */ });
+  }
+
+  function initPromo() {
+    loadPromo();
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) loadPromo(); });
+  }
+
   function initStock() {
     loadStock();
     // Voltou para a aba depois de um tempo: o estoque pode ter mudado.
@@ -758,7 +837,7 @@
   }
 
   function renderFreeShipping() {
-    var progress = Pricing.freeShippingProgress(subtotal());
+    var progress = Pricing.freeShippingProgress(payableSubtotal());
     var box = $('#freeship');
     box.classList.toggle('is-free', progress.qualifies);
     $('#freeship-text').innerHTML = progress.qualifies
@@ -781,8 +860,28 @@
     $('#cross-sell').hidden = suggestions.length === 0;
     $('#cross-sell-list').innerHTML = suggestions.map(pairingTemplate).join('');
 
-    $('#cart-subtotal').textContent = money(subtotal());
+    renderCartTotals();
     $('#btn-checkout').disabled = state.cart.length === 0;
+  }
+
+  // Rodapé do carrinho: subtotal e, com a Black Friday ligada e vinhos da
+  // promoção no carrinho, o desconto da forma de pagamento escolhida.
+  function renderCartTotals() {
+    var discount = state.promo ? Promocao.promoDiscount(state.cart, state.paymentMethod) : 0;
+    var showPromo = discount > 0;
+    $('#cart-subtotal').textContent = money(subtotal());
+    $('#cart-subtotal-line').classList.toggle('total', !showPromo);
+    $('#cart-promo-line').hidden = !showPromo;
+    $('#cart-payable-line').hidden = !showPromo;
+    $('#cart-promo-hint').hidden = !showPromo;
+    if (!showPromo) return;
+    var method = state.paymentMethod;
+    var other = method === 'pix' ? 'card' : 'pix';
+    $('#cart-promo-label').textContent = 'Desconto Black Friday (' + promoMethodLabel(method) + ' −' + promoPct(method) + '%)';
+    $('#cart-promo-amount').textContent = '− ' + money(discount);
+    $('#cart-payable').textContent = money(payableSubtotal());
+    $('#cart-promo-hint').textContent = 'Valor para pagamento no ' + promoMethodLabel(method) + '. No ' + promoMethodLabel(other) +
+      ' o desconto é de ' + promoPct(other) + '%. Você escolhe ao finalizar o pedido.';
   }
 
   function initCart() {
@@ -819,15 +918,18 @@
   function currentFreightCost() {
     if (state.freight.quoted) return state.freight.cost || 0;
     // Prévia local até o CEP ser informado; a API é a fonte de verdade.
-    return Pricing.fallbackFreight(subtotal()).cost;
+    return Pricing.fallbackFreight(payableSubtotal()).cost;
   }
 
   function currentTotals() {
-    return Pricing.computeTotals(state.cart, state.coupon.valid ? state.coupon.code : null, currentFreightCost());
+    return Pricing.computeTotals(state.cart, state.coupon.valid ? state.coupon.code : null, currentFreightCost(), promoOption());
   }
 
   function totalsLinesHtml(totals) {
     var html = '<div class="totals-line"><span>Subtotal</span><span>' + money(totals.subtotal) + '</span></div>';
+    if (totals.promoDiscount > 0) {
+      html += '<div class="totals-line discount"><span>Desconto Black Friday (' + promoMethodLabel(state.paymentMethod) + ' −' + promoPct(state.paymentMethod) + '%)</span><span>− ' + money(totals.promoDiscount) + '</span></div>';
+    }
     if (totals.discount > 0) {
       html += '<div class="totals-line discount"><span>Desconto (' + esc(totals.couponCode) + ')</span><span>− ' + money(totals.discount) + '</span></div>';
     }
@@ -918,7 +1020,7 @@
         renderCheckoutSummary();
       })
       .catch(function () {
-        var fallback = Pricing.fallbackFreight(subtotal());
+        var fallback = Pricing.fallbackFreight(payableSubtotal());
         state.freight = { cost: fallback.cost, free: fallback.free, quoted: true };
         hint.className = 'field-hint';
         hint.textContent = 'Não foi possível cotar agora. Frete estimado: ' + (fallback.free ? 'Grátis!' : money(fallback.cost));
@@ -936,18 +1038,24 @@
       renderCheckoutSummary();
       return;
     }
-    var result = Pricing.applyCoupon(subtotal(), code);
-    state.coupon = { code: result.code, valid: result.valid };
-    hint.className = 'field-hint ' + (result.valid ? 'ok' : 'err');
-    hint.textContent = result.valid
-      ? 'Cupom aplicado: −' + money(result.discount)
-      : 'Cupom inválido.';
+    // Com a Black Friday ligada o cupom não acumula: só vale para os vinhos fora dela.
+    var base = Pricing.couponBase(state.cart, promoOption());
+    var result = Pricing.applyCoupon(base, code);
+    var blocked = state.promo && result.valid && base === 0 && subtotal() > 0;
+    state.coupon = { code: result.code, valid: result.valid && !blocked };
+    hint.className = 'field-hint ' + (result.valid && !blocked ? 'ok' : 'err');
+    if (blocked) hint.textContent = 'Este cupom não vale para os vinhos da Black Friday.';
+    else if (result.valid) hint.textContent = 'Cupom aplicado: −' + money(result.discount) + (state.promo && Promocao.promoSubtotal(state.cart) > 0 ? ' (não vale para os vinhos da Black Friday)' : '');
+    else hint.textContent = 'Cupom inválido.';
     renderCheckoutSummary();
   }
 
   function setPaymentMethod(method) {
     state.paymentMethod = method;
     $('#pix-box').hidden = method !== 'pix';
+    // O desconto da Black Friday muda com a forma de pagamento.
+    renderCheckoutSummary();
+    renderCart();
   }
 
   function readCustomer() {
@@ -1155,6 +1263,7 @@
       '<h3>Itens</h3>' + itemsHtml +
       '<h3 style="margin-top:14px">Valores</h3>' +
       '<div class="sh-summary-line"><span>Subtotal</span><span>' + money(order.subtotal) + '</span></div>' +
+      (order.promoDiscount > 0 ? '<div class="sh-summary-line"><span>Desconto Black Friday (' + promoMethodLabel(payload.paymentMethod) + ')</span><span>− ' + money(order.promoDiscount) + '</span></div>' : '') +
       (order.discount > 0 ? '<div class="sh-summary-line"><span>Desconto (' + esc(order.couponCode) + ')</span><span>− ' + money(order.discount) + '</span></div>' : '') +
       '<div class="sh-summary-line"><span>Frete</span><span>' + (order.freight === 0 ? 'Grátis' : money(order.freight)) + '</span></div>' +
       '<div class="sh-summary-line"><span><strong>Total</strong></span><span><strong>' + money(order.total) + '</strong></span></div>' +
@@ -1431,6 +1540,7 @@
     renderFab();
     renderCart();
     initStock();
+    initPromo();
 
     document.addEventListener('keydown', function (event) {
       if (event.key !== 'Escape') return;
