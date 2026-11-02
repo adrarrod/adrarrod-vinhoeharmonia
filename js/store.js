@@ -380,6 +380,16 @@
     var Co = window.Colecoes;
     var active = Co ? Co.activeCollections(new Date()) : [];
     box.innerHTML = active.map(function (c) {
+      if (c.teaser) {
+        return '' +
+          '<section class="banner-teaser" aria-labelledby="teaser-' + esc(c.slug) + '">' +
+            '<h2 class="banner-teaser-title" id="teaser-' + esc(c.slug) + '">' + esc(c.title) + '</h2>' +
+            '<picture>' +
+              '<source media="(max-width: 600px)" srcset="' + esc(c.bannerMobile) + '">' +
+              '<img src="' + esc(c.bannerDesktop) + '" alt="' + esc(c.bannerAlt) + '" width="1600" height="640">' +
+            '</picture>' +
+          '</section>';
+      }
       return '' +
         '<a class="banner-link" href="#' + esc(c.slug) + '">' +
           '<picture>' +

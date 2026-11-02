@@ -1,10 +1,14 @@
-// js/colecoes.js — coleções temporárias de vinhos (ex.: Halloween), com banner
-// na home. Clicar no banner abre index.html#slug: a própria home mostra só os
-// vinhos da coleção, com carrinho, estoque e popup iguais aos da vitrine.
+// js/colecoes.js — banners da home: coleções temporárias de vinhos e avisos.
 //
-// Para criar uma coleção nova: coloque os banners em colecoes-img/ e acrescente
-// um objeto a COLLECTIONS. `until` (YYYY-MM-DD) é o primeiro dia em que a coleção
-// já NÃO aparece mais; sem `until`, ela fica no ar até ser removida daqui.
+// Coleção (ex.: Halloween): tem banner na home; clicar nele abre index.html#slug,
+// e a própria home mostra só os vinhos da coleção, com carrinho, estoque e popup
+// iguais aos da vitrine.
+// Aviso (`teaser: true`, ex.: "Black Friday em breve"): o título aparece em cima
+// do banner e não há link nem página, porque ainda não há vinhos para mostrar.
+//
+// Para criar um banner novo: coloque as imagens em colecoes-img/ e acrescente um
+// objeto a COLLECTIONS. `until` (YYYY-MM-DD) é o primeiro dia em que ele já NÃO
+// aparece mais; sem `until`, fica no ar até ser removido daqui.
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
     module.exports = factory();
@@ -14,22 +18,12 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const COLLECTIONS = [
     {
-      slug: 'halloween',
-      title: 'Sugestões para o Halloween',
-      intro: 'Seis vinhos escolhidos para a noite de Halloween: tintos macios e frutados, um branco fresco e um rosé, para acompanhar petiscos, massas e pizzas.',
-      ctaText: 'Ver sugestões de vinhos',
-      bannerAlt: 'Banner de Halloween com abóboras, morcegos e lua cheia: toque para ver sugestões de vinhos para o Halloween',
-      bannerDesktop: 'colecoes-img/halloween-desktop.jpg',
-      bannerMobile: 'colecoes-img/halloween-mobile.jpg',
-      until: '2026-11-01',
-      wines: [
-        'baron-philippe-de-rothschild-reserva-especial-merlot',
-        'ca-montebello-barbera',
-        'gretus-tempranillo',
-        'single-vineyard-pinot-noir',
-        'pescada-blend-verde',
-        'mon-bouquet-de-provence'
-      ]
+      slug: 'black-friday',
+      teaser: true,
+      title: 'Estamos preparando a Black Friday. Em breve vamos lançar!',
+      bannerAlt: 'Banner com o texto Black Friday em letras cinza sobre fundo escuro',
+      bannerDesktop: 'colecoes-img/black-friday-desktop.jpg',
+      bannerMobile: 'colecoes-img/black-friday-mobile.jpg'
     }
   ];
 
@@ -44,13 +38,15 @@
     return !collection.until || todayISO(date) < collection.until;
   }
 
-  function activeCollections(date) {
-    return COLLECTIONS.filter((c) => isActive(c, date));
+  // Banners a mostrar na home no dia dado (coleções e avisos).
+  function activeCollections(date, list) {
+    return (list || COLLECTIONS).filter((c) => isActive(c, date));
   }
 
-  function findActive(slug, date) {
+  // Coleção que pode ser aberta por index.html#slug. Aviso não tem página.
+  function findActive(slug, date, list) {
     if (!slug) return undefined;
-    return COLLECTIONS.find((c) => c.slug === slug && isActive(c, date));
+    return (list || COLLECTIONS).find((c) => c.slug === slug && !c.teaser && isActive(c, date));
   }
 
   return { COLLECTIONS, todayISO, isActive, activeCollections, findActive };

@@ -334,31 +334,45 @@ Questionário de perfil de paladar, com 12 perguntas em 4 etapas.
 - **Limite da Vercel:** continua em 12 funções em `api/` (usa `api/subscribers.js`
   e `api/subscriber-area.js`).
 
-## Coleções com banner (ex.: Halloween)
+## Banners da home (coleções e avisos)
 
-O banner no alto da home (antes das Harmonizações) e a tela de sugestões que ele
-abre vêm de `js/colecoes.js`. Clicar no banner abre `index.html#halloween`: a
-própria home passa a mostrar só os vinhos da coleção, com carrinho, estoque,
-popup e busca iguais aos da vitrine ("← Voltar à loja" ou o botão voltar do
-navegador retornam). O link `index.html#halloween` também pode ser compartilhado.
+Os banners no alto da home (antes das Harmonizações) vêm de `js/colecoes.js`. Há
+dois tipos:
 
-Para criar uma coleção nova (Natal, Dia dos Namorados...):
+- **Aviso** (`teaser: true`): o título aparece **em cima** da imagem e não há link
+  nem página. É o que está no ar agora: **"Estamos preparando a Black Friday. Em
+  breve vamos lançar!"**, com a imagem em `colecoes-img/black-friday-*.jpg`. Fica no
+  ar até você trocá-lo (não tem `until`).
+- **Coleção** (ex.: Halloween, Natal): o banner tem um botão; clicar abre
+  `index.html#slug`, e a própria home passa a mostrar só os vinhos da coleção, com
+  carrinho, estoque, popup e busca iguais aos da vitrine ("← Voltar à loja" ou o
+  botão voltar do navegador retornam). O link `index.html#slug` pode ser
+  compartilhado. A coleção do Halloween foi removida (links antigos
+  `index.html#halloween` apenas abrem a loja).
 
-1. Coloque dois recortes do banner em `colecoes-img/`: um largo para o computador
-   (3:1, ex. 1600x533) e um mais fechado para o celular (2:1, ex. 960x480).
+**Quando a Black Friday for lançada:** troque o aviso por uma coleção. Em
+`js/colecoes.js`, no objeto `black-friday`, tire `teaser: true`, e acrescente
+`intro`, `ctaText` e `wines` (os `slug` dos vinhos escolhidos). Se tiver imagens
+novas, substitua os dois arquivos de `colecoes-img/`.
+
+Para criar um banner novo:
+
+1. Coloque dois recortes da imagem em `colecoes-img/`: um largo para o computador
+   (ex.: 1600x640, ou 3:1) e um mais fechado para o celular (2:1, ex. 960x480).
+   Confira se o texto da imagem não é cortado nos dois.
 2. Em `js/colecoes.js`, acrescente um objeto a `COLLECTIONS` com `slug` (letras
-   minúsculas, números e hífen — é o que aparece depois do `#`), `title`, `intro`,
-   `ctaText`, `bannerAlt`, `bannerDesktop`, `bannerMobile`, `wines` (os `slug` dos
-   vinhos, na ordem em que aparecem) e, se quiser, `until`.
+   minúsculas, números e hífen — é o que aparece depois do `#`), `title`,
+   `bannerAlt`, `bannerDesktop`, `bannerMobile` e, se quiser, `until`. Para uma
+   **coleção**, acrescente também `intro`, `ctaText` e `wines`. Para um **aviso**,
+   `teaser: true` (sem `wines`).
 3. Rode `npm test`: ele confere se todo vinho existe no catálogo, se as imagens
    existem e se nada sobrou na pasta.
 4. Incremente o `CACHE_NAME` em `sw.js`.
 
-**A coleção sai do ar sozinha.** `until` é o primeiro dia em que ela já NÃO
-aparece (a do Halloween tem `until: '2026-11-01'`, ou seja, some no dia 1º de
-novembro). Para estender, mude essa data; para deixá-la no ar sem prazo, apague a
-linha `until`. Se um vinho da coleção for tirado do catálogo, o `npm test` falha
-até você tirá-lo também de `wines`.
+**O banner sai do ar sozinho** quando tem `until`: é o primeiro dia em que ele já
+NÃO aparece. Para estender, mude essa data; para deixá-lo no ar sem prazo, apague
+a linha `until`. Se um vinho de uma coleção for tirado do catálogo, o `npm test`
+falha até você tirá-lo também de `wines`.
 
 ## Harmonizações (faixa da home e página de explicação)
 

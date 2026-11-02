@@ -238,10 +238,25 @@ button { cursor: pointer; }
   box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
 }
 .banner-link:hover .banner-cta { background: var(--gold-soft); }
+/* Aviso (ex.: "Black Friday em breve"): título em cima, imagem embaixo, sem link. */
+.banner-teaser { text-align: center; }
+.banner-teaser-title {
+  margin: 0 0 10px;
+  font-size: clamp(1.25rem, 4.2vw, 1.9rem);
+  line-height: 1.15;
+  color: var(--gold-soft);
+}
+.banner-teaser img {
+  display: block;
+  width: 100%; height: auto; aspect-ratio: 5 / 2; object-fit: cover; background: #14090d;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(196, 154, 61, .35);
+  box-shadow: var(--shadow-soft);
+}
 /* Celular: o banner é baixo e o botão por cima cobriria o texto da imagem, então
    ele vira uma faixa embaixo dela. */
 @media (max-width: 600px) {
-  .banner-link img { aspect-ratio: 2 / 1; }
+  .banner-link img, .banner-teaser img { aspect-ratio: 2 / 1; }
   .banner-cta {
     position: static;
     transform: none;
