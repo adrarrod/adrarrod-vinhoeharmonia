@@ -147,8 +147,15 @@ O cliente nunca consegue comprar mais garrafas do que existem. Como funciona:
   clientes pedindo a última garrafa ao mesmo tempo: só um leva; o outro vê "Ops!
   Alguém levou antes de você" e o carrinho é ajustado). Se o pedido falhar ao
   ser gravado, as garrafas voltam sozinhas.
-- **Vitrine:** vinho com estoque 0 aparece como "Esgotado", sem botão de compra;
-  o carrinho respeita o limite de cada vinho.
+- **Vitrine:** vinho com estoque 0 **fica escondido da loja** (categorias, busca,
+  filtros de país/uva, página da Black Friday e link direto do vinho). Quando você
+  repõe o estoque no painel, ele volta sozinho: a loja confere o estoque ao abrir
+  e sempre que o cliente volta para a aba. Os contadores ("12 rótulos", "Italia
+  (9)") contam só o que está à venda. Uma categoria que ficar sem nenhum vinho
+  some junto com a aba dela. O carrinho respeita o limite de cada vinho, e quem
+  já tinha um vinho esgotado no carrinho recebe o aviso e ele sai de lá.
+  O que **não** muda: a lista de estoque do painel e os vinhos do clube já
+  entregues ao assinante continuam mostrando todos os vinhos.
 - **Ajustar / repor:** em `/admin.html`, seção **Estoque** (digite a quantidade e
   clique em *Salvar*). É por aí que você atualiza o estoque, não pela planilha.
 - **Pedido cancelado:** no card do pedido, botão **Cancelar pedido** — marca como

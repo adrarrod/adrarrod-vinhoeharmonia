@@ -157,9 +157,21 @@
     return String(wine.grape || '').split('/').map((g) => g.trim()).filter(Boolean);
   }
 
-  function countBy(valuesOf) {
+  // Vinho sem estoque não aparece na loja. O mapa `stock` (slug -> quantidade)
+  // vem de /api/stock; sem ele (ainda não carregou, ou a chamada falhou) nada é
+  // escondido, e quem barra o pedido continua sendo o servidor. Só o número 0
+  // (ou menos) esconde: slug fora do mapa ou valor que não é número não conta.
+  function isSoldOut(slug, stock) {
+    return !!stock && typeof stock[slug] === 'number' && stock[slug] <= 0;
+  }
+
+  function inStock(stock) {
+    return MENU.filter((w) => !isSoldOut(w.slug, stock));
+  }
+
+  function countBy(wines, valuesOf) {
     const counts = new Map();
-    for (const wine of MENU) {
+    for (const wine of wines) {
       for (const value of valuesOf(wine)) counts.set(value, (counts.get(value) || 0) + 1);
     }
     return [...counts.entries()]
@@ -168,15 +180,22 @@
   }
 
   // Opções dos filtros da home: [{ value, count }], em ordem alfabética.
-  const COUNTRIES = countBy((w) => [w.country]);
-  const GRAPES = countBy(grapesOf);
+  const COUNTRIES = countBy(MENU, (w) => [w.country]);
+  const GRAPES = countBy(MENU, grapesOf);
+
+  // As mesmas opções, contando só os vinhos que a loja está mostrando.
+  function facets(stock) {
+    const wines = inStock(stock);
+    return { countries: countBy(wines, (w) => [w.country]), grapes: countBy(wines, grapesOf) };
+  }
 
   // Combina nome (sem acento/maiúscula), país e uva com E. Sem filtro nenhum,
-  // devolve o catálogo inteiro.
-  function filterWines(filters) {
+  // devolve o catálogo inteiro; com o mapa de estoque, sem os esgotados.
+  function filterWines(filters, stock) {
     const f = filters || {};
     const q = normalizeText(f.query).trim();
     return MENU.filter((w) => {
+      if (isSoldOut(w.slug, stock)) return false;
       if (q && normalizeText(w.name).indexOf(q) === -1) return false;
       if (f.country && w.country !== f.country) return false;
       if (f.grape && grapesOf(w).indexOf(f.grape) === -1) return false;
@@ -236,5 +255,5 @@
     return PAIRING_ICONS[category] || DEFAULT_PAIRING_ICON;
   }
 
-  return { MENU, CATEGORIES, COUNTRIES, GRAPES, findBySlug, suggestPairings, searchByName, filterWines, grapesOf, pairingIcon };
+  return { MENU, CATEGORIES, COUNTRIES, GRAPES, findBySlug, suggestPairings, searchByName, filterWines, grapesOf, pairingIcon, isSoldOut, inStock, facets };
 });

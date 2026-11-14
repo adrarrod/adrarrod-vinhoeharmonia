@@ -96,6 +96,7 @@
     paymentMethod: 'pix',
     modalSlug: null,
     pendingDeepLink: null,
+    soldOutSignature: '',
     deferredInstallPrompt: null,
     pwaDismissed: false,
     stock: null,
@@ -282,16 +283,21 @@
       '</article>';
   }
 
-  function renderCatalog() {
+  // Vitrine por categoria, só com os vinhos que têm estoque. Categoria que ficou
+  // sem nenhum vinho some junto com a aba. Pinta de novo toda vez que a lista de
+  // esgotados muda (ver refreshWinesOnStockChange).
+  function paintCatalog() {
     var tabs = $('#tabs');
     var catalog = $('#catalog');
     var tabsHtml = '';
     var sectionsHtml = '';
+    var available = Catalog.inStock(state.stock);
 
     Catalog.CATEGORIES.forEach(function (category, index) {
       var id = 'cat-' + index;
-      var wines = Catalog.MENU.filter(function (w) { return w.category === category; });
-      tabsHtml += '<button class="tab' + (index === 0 ? ' active' : '') + '" type="button" data-target="' + id + '">' + esc(category) + '</button>';
+      var wines = available.filter(function (w) { return w.category === category; });
+      if (!wines.length) return;
+      tabsHtml += '<button class="tab' + (!tabsHtml ? ' active' : '') + '" type="button" data-target="' + id + '">' + esc(category) + '</button>';
       sectionsHtml += '' +
         '<section class="category" id="' + id + '" data-category="' + esc(category) + '">' +
           '<div class="category-head">' +
@@ -304,6 +310,14 @@
 
     tabs.innerHTML = tabsHtml;
     catalog.innerHTML = sectionsHtml;
+    initScrollSpy();
+  }
+
+  function renderCatalog() {
+    var tabs = $('#tabs');
+    var catalog = $('#catalog');
+
+    paintCatalog();
 
     tabs.addEventListener('click', function (event) {
       var tab = event.target.closest('.tab');
@@ -313,8 +327,6 @@
     });
 
     catalog.addEventListener('click', handleCatalogClick);
-
-    initScrollSpy();
   }
 
   // Compartilhado entre #catalog e #search-results-grid: abrir modal, stepper
@@ -440,7 +452,7 @@
   function showCollection(collection) {
     var wines = collection.wines
       .map(function (slug) { return Catalog.findBySlug(slug); })
-      .filter(Boolean);
+      .filter(function (w) { return w && !Catalog.isSoldOut(w.slug, state.stock); });
 
     $('#tabs').hidden = true;
     $('#catalog').hidden = true;
@@ -494,7 +506,7 @@
   }
 
   function showResults(filters) {
-    var matches = Catalog.filterWines(filters);
+    var matches = Catalog.filterWines(filters, state.stock);
     var grid = $('#search-results-grid');
     var count = $('#search-results-count');
     var empty = $('#search-empty');
@@ -553,13 +565,27 @@
     applyFilters();
   }
 
+  // Preenche (ou preenche de novo) as opções de um filtro, mantendo a escolha do
+  // cliente enquanto ela ainda existir. Devolve false se a escolha sumiu porque
+  // todos os vinhos dela esgotaram.
   function fillFilterOptions(select, options) {
+    var chosen = select.value;
+    while (select.options.length > 1) select.remove(1);
     options.forEach(function (opt) {
       var el = document.createElement('option');
       el.value = opt.value;
       el.textContent = opt.value + ' (' + opt.count + ')';
       select.appendChild(el);
     });
+    select.value = chosen;
+    return select.value === chosen;
+  }
+
+  function fillFilters() {
+    var facets = Catalog.facets(state.stock);
+    var countryKept = fillFilterOptions($('#filter-country'), facets.countries);
+    var grapeKept = fillFilterOptions($('#filter-grape'), facets.grapes);
+    return countryKept && grapeKept;
   }
 
   function initSearch() {
@@ -567,8 +593,7 @@
     var clearBtn = $('#search-clear');
     var results = $('#search-results');
 
-    fillFilterOptions($('#filter-country'), Catalog.COUNTRIES);
-    fillFilterOptions($('#filter-grape'), Catalog.GRAPES);
+    fillFilters();
 
     input.addEventListener('input', applyFilters);
     $('#filter-country').addEventListener('change', applyFilters);
@@ -593,7 +618,10 @@
     });
   }
 
+  var scrollSpy = null;
+
   function initScrollSpy() {
+    if (scrollSpy) { scrollSpy.disconnect(); scrollSpy = null; }
     var sections = $$('.category');
     if (!sections.length || typeof IntersectionObserver === 'undefined') return;
 
@@ -601,14 +629,14 @@
       $$('.tab').forEach(function (tab) { tab.classList.toggle('active', tab.dataset.target === id); });
     }
 
-    var observer = new IntersectionObserver(function (entries) {
+    scrollSpy = new IntersectionObserver(function (entries) {
       var visible = entries
         .filter(function (e) { return e.isIntersecting; })
         .sort(function (a, b) { return b.intersectionRatio - a.intersectionRatio; })[0];
       if (visible) activate(visible.target.id);
     }, { rootMargin: '-130px 0px -55% 0px', threshold: [0, 0.15, 0.4, 0.75] });
 
-    sections.forEach(function (section) { observer.observe(section); });
+    sections.forEach(function (section) { scrollSpy.observe(section); });
   }
 
   // -------------------------------------------------------- modal produto ---
@@ -713,7 +741,30 @@
 
   // Aplica o estoque atual: marca esgotados na vitrine e ajusta o carrinho
   // (tira o que esgotou, reduz o que passou do estoque) avisando o cliente.
+  // A lista de vinhos esgotados mudou (um acabou, ou voltou ao estoque): pinta de
+  // novo a vitrine, as opções dos filtros e a tela que o cliente está vendo. Sem
+  // mudança na lista não mexe em nada, para a página não pular à toa.
+  function soldOutSignature() {
+    return Catalog.MENU.filter(function (w) { return Catalog.isSoldOut(w.slug, state.stock); })
+      .map(function (w) { return w.slug; }).join(',');
+  }
+
+  function refreshWinesOnStockChange() {
+    var signature = soldOutSignature();
+    if (signature === state.soldOutSignature) return;
+    state.soldOutSignature = signature;
+
+    paintCatalog();
+    var filtersKept = fillFilters();
+    var collection = $('#colecao-view').hidden ? undefined : currentCollection();
+    if (collection) { showCollection(collection); return; }
+    // applyFilters volta para a vitrine quando não há filtro, e refaz a busca
+    // quando há; se o filtro escolhido sumiu (acabou tudo dele) ele já foi limpo.
+    if (!filtersKept || !$('#search-results').hidden) applyFilters();
+  }
+
   function refreshStockUI() {
+    refreshWinesOnStockChange();
     applyStockToCards();
     var notes = [];
     state.cart = state.cart.filter(function (item) {
@@ -1406,6 +1457,7 @@
     if (!ageConfirmed || !state.pendingDeepLink) return;
     var slug = state.pendingDeepLink;
     state.pendingDeepLink = null;
+    if (Catalog.isSoldOut(slug, state.stock)) return;
     openProductModal(slug);
   }
 
