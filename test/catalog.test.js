@@ -6,7 +6,7 @@ const Catalog = require('../js/catalog.js');
 const KNOWN_CATEGORIES = ['Tinto', 'Branco', 'Rosé', 'Espumante', 'Sobremesa'];
 
 test('MENU has the full catalog, every wine in a known category', () => {
-  assert.equal(Catalog.MENU.length, 121);
+  assert.equal(Catalog.MENU.length, 123);
   for (const wine of Catalog.MENU) {
     assert.ok(KNOWN_CATEGORIES.includes(wine.category), `unexpected category ${wine.category} on ${wine.name}`);
   }
@@ -180,6 +180,21 @@ test('the five wines added in October 2026 are in the catalog with the data from
     { slug: 'porta-6-brut-branco-metodo-charmat', name: 'Porta 6 BRUT branco Método Charmat', category: 'Espumante', price: 61.99, country: 'Portugal', grape: 'Blend', abv: 12, stock: 6, pairings: ['Frutos do Mar', 'Peixes', 'Saladas'] },
     { slug: 'martha-s-porto-rose', name: "Martha's Porto Rosé", category: 'Sobremesa', price: 106.18, country: 'Portugal', grape: 'Blend', abv: 17, stock: 6, pairings: ['Sobremesas', 'Queijos', 'Frutas'] },
     { slug: 'martha-s-porto-tawny', name: "Martha's Porto Tawny", category: 'Sobremesa', price: 85.45, country: 'Portugal', grape: 'Blend', abv: 17, stock: 6, pairings: ['Sobremesas', 'Queijos', 'Frutas'] }
+  ];
+  for (const e of expected) {
+    const wine = Catalog.findBySlug(e.slug);
+    assert.ok(wine, `missing ${e.slug}`);
+    assert.deepEqual([wine.name, wine.category, wine.price, wine.country, wine.grape, wine.abv, wine.initialStock], [e.name, e.category, e.price, e.country, e.grape, e.abv, e.stock], e.slug);
+    assert.deepEqual(wine.pairings, e.pairings, e.slug);
+    assert.equal(wine.image, `img/${e.slug}.jpg`);
+    assert.ok(wine.description.length > 80, `short description on ${e.slug}`);
+  }
+});
+
+test('the two wines added in November 2026 are in the catalog with the data from the spreadsheet', () => {
+  const expected = [
+    { slug: 'chatelain-valmont-cotes-du-rhone', name: 'Châtelain Valmont - Côtes du Rhône', category: 'Tinto', price: 66.97, country: 'França', grape: 'Blend', abv: 14, stock: 6, pairings: ['Embutidos', 'Carnes', 'Risotos'] },
+    { slug: 'charming-rabbit-chardonnay', name: 'Charming Rabbit Chardonnay', category: 'Branco', price: 67.91, country: 'França', grape: 'Chardonnay', abv: 13, stock: 6, pairings: ['Frutos do Mar', 'Saladas', 'Peixes'] }
   ];
   for (const e of expected) {
     const wine = Catalog.findBySlug(e.slug);
